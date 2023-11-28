@@ -1,5 +1,6 @@
 import threading
 from victim_utils import *
+from victim_cryptography import *
 
 if __name__ == '__main__':
     # GetOpts arguments
@@ -8,8 +9,9 @@ if __name__ == '__main__':
     # Initialize server socket
     server_socket = initialize_server_socket(source_ip, source_port)
 
-    # Generate Key Pair First
-
+    # Generate Key Pair First + Serialize Public Key
+    private_key, public_key = generate_keys()
+    serialized_public_key = serialize_public_key(public_key)
 
     while True:
         print(constants.WAIT_CONNECTION_MSG)
@@ -17,8 +19,11 @@ if __name__ == '__main__':
         print("[+] Accepted connection from {}:{}".format(*client_address))
         print(constants.MENU_CLOSING_BANNER)
 
-        # Perform Key Exchange (Receiving End)
+        # DIFFIE-HELLMAN: Perform Key Exchange (Receiving End)
+        commander_public_key = key_exchange_receiver(client_socket, serialized_public_key)
 
+        # DIFFIE-HELLMAN: Generate Secret
+        shared_secret = generate_shared_secret(private_key, commander_public_key)
 
         try:
             while True:

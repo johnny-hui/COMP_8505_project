@@ -28,7 +28,7 @@ def generate_keys():
     return private_key, public_key
 
 
-def __serialize_public_key(public_key: DHPublicKey):
+def serialize_public_key(public_key: DHPublicKey):
     """
     Serializes the public key for key exchange
     between commander and victim.
@@ -129,6 +129,7 @@ def key_exchange_receiver(client_sock: socket.socket, serialized_pub_key: bytes)
     try:
         # a) Wait and Receive Public Key (in Serialized (Byte) Form)
         print("[+] KEY EXCHANGE: Now exchanging public keys with commander...")
+        print("[+] WAITING FOR COMMANDER: Now waiting for commander to send their public key...")
         client_public_key_bytes = client_sock.recv(1024)
 
         # b) Send Serialized Public Key
@@ -158,7 +159,14 @@ def generate_shared_secret(private_key: DHPrivateKey, client_public_key: DHPubli
         A shared secret key (in bytes)
     """
     try:
-        return private_key.exchange(client_public_key)
+        print("[+] GENERATING SECRET: Now generating secret using private key and target/victim's public key...")
+
+        if client_public_key:
+            shared_secret = private_key.exchange(client_public_key)
+            print("[+] OPERATION SUCCESSFUL: A shared secret has been established!")
+            return shared_secret
+        else:
+            print("[+] DF SECRET GENERATION UNSUCCESSFUL: An error occurred during secret generation!")
     except Exception as e:
         print("[+] DF SECRET GENERATION UNSUCCESSFUL: An error occurred during secret generation: {}".format(e))
 

