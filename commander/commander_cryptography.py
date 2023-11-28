@@ -2,11 +2,39 @@ import socket
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey
+from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey, DHParameters
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
-def generate_keys():
+def receive_dh_parameters(client_socket: socket.socket):
+    """
+    Receive Diffie-Hellman parameters from commander.
+
+    @param client_socket:
+        The commander socket
+
+    @return parameters:
+        A DHParameters object representing the agreed parameters
+        for generation of a private/public key pair
+    """
+    try:
+        print("[+] EXCHANGING PARAMETERS: Now receiving Diffie-Hellman parameters from target/victim...")
+        serialized_parameter = client_socket.recv(1024)
+        parameters = serialization.load_pem_parameters(serialized_parameter, backend=default_backend())
+
+        if parameters is not None:
+            print("[+] OPERATION SUCCESSFUL: Diffie-Hellman parameters has been received successfully!")
+            client_socket.send("OK".encode())
+            return parameters
+        else:
+            client_socket.send("ERROR".encode())
+            return None
+
+    except Exception as e:
+        print("[+] EXCHANGE PARAMETERS UNSUCCESSFUL: An error has occurred: {}".format(e))
+
+
+def generate_keys(parameters: DHParameters):
     """
     Generates private and public keys for a Diffie-Hellman
     Key Exchange.
@@ -23,7 +51,6 @@ def generate_keys():
     """
     # a) Set DH Parameters (must be agreed upon and same between both cmdr & victim)
     print("[+] GENERATING KEYS: Now generating private and public keys...")
-    parameters = dh.generate_parameters(generator=2, key_size=1024, backend=default_backend())
 
     # b) Generate Private Key (used for generating public key)
     private_key = parameters.generate_private_key()  # => Private Key is a random number
@@ -33,7 +60,6 @@ def generate_keys():
     print("[+] OPERATION SUCCESSFUL: Private and public keys have been successfully generated!")
 
     return private_key, public_key
-
 
 def serialize_public_key(public_key: DHPublicKey):
     """

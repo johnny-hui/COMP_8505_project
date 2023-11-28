@@ -9,8 +9,8 @@ if __name__ == '__main__':
     # Initialize server socket
     server_socket = initialize_server_socket(source_ip, source_port)
 
-    # Generate Key Pair First + Serialize Public Key
-    private_key, public_key = generate_keys()
+    # Generate Key Pair and Parameters + Serialize Public Key
+    private_key, public_key, parameters = generate_keys_and_parameters()
     serialized_public_key = serialize_public_key(public_key)
 
     while True:
@@ -18,6 +18,9 @@ if __name__ == '__main__':
         client_socket, client_address = server_socket.accept()
         print("[+] Accepted connection from {}:{}".format(*client_address))
         print(constants.MENU_CLOSING_BANNER)
+
+        # DIFFIE-HELLMAN: Send Parameters to Commander
+        send_dh_parameters(client_socket, parameters)
 
         # DIFFIE-HELLMAN: Perform Key Exchange (Receiving End)
         commander_public_key = key_exchange_receiver(client_socket, serialized_public_key)

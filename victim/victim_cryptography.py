@@ -2,11 +2,42 @@ import socket
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey
+from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey, DHParameters
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
-def generate_keys():
+def send_dh_parameters(cmdr_socket: socket.socket, parameters: DHParameters):
+    """
+    Converts Diffie-Hellman parameters into bytes and
+    sends to commander.
+
+    @param cmdr_socket:
+        The commander socket
+
+    @param parameters:
+        Diffie-Hellman parameters (containing prime number and generator value)
+
+    @return: None
+    """
+    try:
+        print("[+] EXCHANGING PARAMETERS: Now sending Diffie-Hellman parameters to commander...")
+        serialized_parameter = parameters.parameter_bytes(encoding=serialization.Encoding.PEM,
+                                                          format=serialization.ParameterFormat.PKCS3)
+        cmdr_socket.send(serialized_parameter)
+        response = cmdr_socket.recv(1024).decode()
+
+        if response == "OK":
+            print("[+] OPERATION SUCCESSFUL: Diffie-Hellman parameters has been sent successfully!")
+            return None
+        else:
+            print("[+] EXCHANGE PARAMETERS UNSUCCESSFUL: An error has occurred!")
+            return None
+
+    except Exception as e:
+        print("[+] EXCHANGE PARAMETERS UNSUCCESSFUL: An error has occurred: {}".format(e))
+
+
+def generate_keys_and_parameters():
     """
     Generates private and public keys for a
     Diffie-Hellman Key Exchange.
@@ -32,7 +63,7 @@ def generate_keys():
     public_key = private_key.public_key()
     print("[+] OPERATION SUCCESSFUL: Private and public keys have been successfully generated!")
 
-    return private_key, public_key
+    return private_key, public_key, parameters
 
 
 def serialize_public_key(public_key: DHPublicKey):
