@@ -39,7 +39,7 @@ def generate_keys(parameters: DHParameters):
     Generates private and public keys for a Diffie-Hellman
     Key Exchange.
 
-    @attention: Key Size
+    @attention: Key Size Reduced
         The key size has been reduced from common 2048 to 1024,
         which may reduce the security of the keys.
 
@@ -60,6 +60,7 @@ def generate_keys(parameters: DHParameters):
     print("[+] OPERATION SUCCESSFUL: Private and public keys have been successfully generated!")
 
     return private_key, public_key
+
 
 def serialize_public_key(public_key: DHPublicKey):
     """
@@ -266,3 +267,35 @@ def decrypt(encrypted_data: bytes, shared_key: bytes):
 
     except Exception as e:
         print("[+] FILE DECRYPTION ERROR: An error has occurred while decrypting the data: {}".format(e))
+
+
+def perform_diffie_hellman(victim_socket: socket.socket):
+    """
+    Performs a Diffie-Hellman Key Exchange and generates
+    a secret used for symmetric encryption/decryption.
+
+    @param victim_socket:
+        A socket object representing the victim
+
+    @return
+    """
+    if victim_socket is not None:
+        # Receive Parameters from target/victim
+        parameters = receive_dh_parameters(victim_socket)
+
+        # Generate Key Pair and Parameter for Diffie-Hellman Key Exchange
+        private_key, public_key = generate_keys(parameters)
+
+        # Serialize Pub Key
+        serialized_public_key = serialize_public_key(public_key)
+
+        # Perform Key Exchange
+        victim_public_key = key_exchange_initiator(victim_socket, serialized_public_key)
+
+        # Generate Secret (used for symmetric encryption/decryption)
+        shared_secret = generate_shared_secret(private_key, victim_public_key)
+
+        return private_key, public_key, shared_secret
+    else:
+        print("[+] DIFFIE-HELLMAN ERROR: There is no current connection to any target/victim!")
+        return None, None, None

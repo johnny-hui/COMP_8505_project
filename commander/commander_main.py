@@ -19,21 +19,9 @@ if __name__ == '__main__':
     # Initial connect to victim as passed by argument (and put in sockets_to_read)
     print_config(destination_ip, destination_port, (source_ip, source_port))
     victim_socket = initial_connect_to_client(sockets_to_read, connected_clients, destination_ip, destination_port)
-    if victim_socket is not None:
-        # DIFFIE-HELLMAN: Receive Parameters from target/victim
-        parameters = receive_dh_parameters(victim_socket)
 
-        # DIFFIE-HELLMAN: Generate Key Pair and Parameter for Diffie-Hellman Key Exchange
-        private_key, public_key = generate_keys(parameters)
-
-        # DIFFIE-HELLMAN: Serialize Pub Key
-        serialized_public_key = serialize_public_key(public_key)
-
-        # DIFFIE-HELLMAN: Perform Key Exchange
-        victim_public_key = key_exchange_initiator(victim_socket, serialized_public_key)
-
-        # DIFFIE-HELLMAN: Generate Secret (used for symmetric encryption/decryption)
-        shared_secret = generate_shared_secret(private_key, victim_public_key)
+    # Perform Diffie-Hellman Key Exchange (for encryption/decryption)
+    private_key, public_key, shared_secret = perform_diffie_hellman(victim_socket)
 
     # Initialize a Global Thread and Queue (for multipurpose)
     global_thread = None

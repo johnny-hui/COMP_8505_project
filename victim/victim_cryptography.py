@@ -42,7 +42,7 @@ def generate_keys_and_parameters():
     Generates private and public keys for a
     Diffie-Hellman Key Exchange.
 
-    @attention: Key Size
+    @attention: Key Size Reduced
             The key size has been reduced from common 2048 to 1024,
             which may reduce the security of the keys.
 
@@ -54,7 +54,7 @@ def generate_keys_and_parameters():
     """
     # a) Set DH Parameters (must be agreed upon and same between both cmdr & victim)
     print("[+] GENERATING KEYS: Now generating private and public keys...")
-    parameters = dh.generate_parameters(generator=2, key_size=1024, backend=default_backend())
+    parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
 
     # b) Generate Private Key (used for generating public key)
     private_key = parameters.generate_private_key()  # => Private Key is a random number
