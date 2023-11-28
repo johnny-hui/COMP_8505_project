@@ -20,6 +20,9 @@ if __name__ == '__main__':
     victim_socket = initial_connect_to_client(sockets_to_read, connected_clients, destination_ip,
                                               destination_port)
 
+    # Generate Key Pair + Perform Key Exchange (Initiator)
+
+
     # Initialize a Global Thread and Queue (for multipurpose)
     global_thread = None
     signal_queue = queue.Queue()
