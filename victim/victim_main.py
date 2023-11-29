@@ -228,7 +228,7 @@ if __name__ == '__main__':
                         # return None
 
                     receive_file_covert(client_socket, client_address[0], client_address[1],
-                                        source_ip, source_port, choices, filename)
+                                        source_ip, source_port, shared_secret, choices, filename)
 
 # f) Transfer file to Commander
                 if data.decode() == constants.GET_FILE_SIGNAL:

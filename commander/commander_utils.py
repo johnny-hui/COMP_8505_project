@@ -9,6 +9,7 @@ import time
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.inet6 import IPv6
 from scapy.sendrecv import send, sniff
+from commander_cryptography import encrypt_file, decrypt
 import constants
 import ipaddress
 from ipv6_getter import determine_ipv6_address
@@ -351,6 +352,7 @@ def __bytes_to_bin(data):
 
 # // ===================================== COVERT CHANNEL FUNCTIONS ===================================== //
 
+# TODO: Encrypt and Decrypt this!
 def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_port: int):
     # Print operation
     print(constants.GET_IPV6_MSG.format(dest_ip, dest_port))
@@ -395,7 +397,7 @@ def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_por
         print(constants.MENU_CLOSING_BANNER)
         return None, None
 
-
+# TODO: Encrypt and Decrypt this!
 def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int):
     """
     Sends a ipv6_getter.py script to target and awaits for
@@ -424,7 +426,8 @@ def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int)
         return dest_ip, dest_port
 
 
-def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     TTL field.
@@ -441,14 +444,16 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Split the binary data into chunks that fit within the TTL range (0-255)
     ttl_chunk_size = 8  # MAX SIZE is 8 bits == (1 char)
@@ -473,7 +478,8 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str,
+                               file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     version field.
@@ -490,14 +496,16 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_pa
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in a packet
     packets = []
@@ -519,7 +527,8 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_pa
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     IHL (Internet Header Length) field.
@@ -541,14 +550,16 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -570,7 +581,8 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str,
+                          file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     DS (differentiated services) field.
@@ -587,14 +599,16 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: s
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -616,7 +630,8 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: s
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     ECN field.
@@ -633,14 +648,16 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -663,7 +680,8 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str,
+                                    file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     total length field.
@@ -680,14 +698,16 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, fi
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -710,7 +730,8 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, fi
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str,
+                                      file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     identification field.
@@ -727,14 +748,16 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -756,7 +779,8 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str,
+                             file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     flags field.
@@ -773,14 +797,16 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -802,7 +828,8 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str,
+                                   file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     fragment offset field.
@@ -819,14 +846,16 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, fil
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -848,7 +877,8 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, fil
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str,
+                                file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     protocol field.
@@ -865,14 +895,16 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_p
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -894,7 +926,8 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_p
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str,
+                                     file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     header checksum field.
@@ -911,14 +944,16 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, f
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -941,7 +976,8 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, f
 
 
 def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
-                                client_port: int, src_port: int, file_path: str):
+                                client_port: int, src_port: int, file_path: str,
+                                shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     source address field; uses TCP.
@@ -971,14 +1007,16 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1000,7 +1038,8 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str,
+                                file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     destination address field.
@@ -1025,14 +1064,16 @@ def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str, file_p
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2626,7 +2667,8 @@ def __get_protocol_header_transfer_function_map():
 
 
 def transfer_file_covert(sock: socket.socket, dest_ip: str, dest_port: int,
-                         source_ip: str, source_port: int, choices: tuple):
+                         source_ip: str, source_port: int, shared_secret: bytes,
+                         choices: tuple):
     # Initialize map
     header_field_function_map = __get_protocol_header_transfer_function_map()
 
@@ -2658,10 +2700,10 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str, dest_port: int,
                 # DIFFERENT HANDLERS: IPv4
                 if constants.IPV4 in choices:
                     if constants.SOURCE_ADDRESS_FIELD in choices:
-                        selected_function(sock, dest_ip, dest_port, source_port, file_path)
+                        selected_function(sock, dest_ip, dest_port, source_port, file_path, shared_secret)
 
                     elif selected_function is not None and callable(selected_function):
-                        selected_function(sock, dest_ip, file_path)
+                        selected_function(sock, dest_ip, file_path, shared_secret)
 
                 # DIFFERENT HANDLERS: IPv6
                 elif constants.IPV6 in choices:

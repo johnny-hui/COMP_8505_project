@@ -208,7 +208,7 @@ def generate_shared_secret(private_key: DHPrivateKey, client_public_key: DHPubli
         print("[+] DF SECRET GENERATION UNSUCCESSFUL: An error occurred during secret generation: {}".format(e))
 
 
-def encrypt(file_path: str, shared_key: bytes):
+def encrypt_file(file_path: str, shared_key: bytes):
     """
     Encrypts a file's data using AES (Advanced Encryption Standard)
     method.
