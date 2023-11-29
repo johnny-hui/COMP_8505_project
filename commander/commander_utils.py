@@ -397,6 +397,7 @@ def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_por
         print(constants.MENU_CLOSING_BANNER)
         return None, None
 
+
 # TODO: Encrypt and Decrypt this!
 def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int):
     """
@@ -449,7 +450,7 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str,
 
     @return: None
     """
-    # a) Read and encrypt the content of the file
+    # a) Read and encrypt the content of the file (contains 16-byte salt)
     encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
