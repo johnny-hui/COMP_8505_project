@@ -3664,6 +3664,10 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str,
 
         # DIFFERENT HANDLERS: IPv4
         if constants.IPV4 in choices:
+            if constants.DESTINATION_ADDRESS_FIELD in choices:
+                __transfer_file_dst_addr_error_handler(choices[1], choices[0])
+                return None
+
             if constants.SOURCE_ADDRESS_FIELD in choices:
                 selected_function(sock, dest_ip, dest_port, source_port, file_path)
 
