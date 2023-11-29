@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
                 # MENU ITEM 1 - Start Keylogger
                 if command == constants.PERFORM_MENU_ITEM_ONE:
-                    perform_menu_item_1(connected_clients)
+                    perform_menu_item_1(connected_clients, shared_secret)
 
                 # MENU ITEM 2 - Stop Keylogger
                 if command == constants.PERFORM_MENU_ITEM_TWO:

