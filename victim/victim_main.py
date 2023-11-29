@@ -76,7 +76,8 @@ if __name__ == '__main__':
                                 # Set global signal and start a thread to watch (prevents recv() blocking)
                                 signal_queue = queue.Queue()
                                 watcher_thread = threading.Thread(target=watch_stop_signal, args=(client_socket,
-                                                                                                  signal_queue,))
+                                                                                                  signal_queue,
+                                                                                                  shared_secret))
                                 watcher_thread.daemon = True
                                 watcher_thread.start()
 

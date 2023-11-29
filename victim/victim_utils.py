@@ -126,10 +126,11 @@ def delete_file(file_path: str):
 
 
 def watch_stop_signal(client_socket: socket.socket,
-                      signal_queue: queue.Queue):
+                      signal_queue: queue.Queue,
+                      shared_secret: bytes):
     while True:
         try:
-            signal = client_socket.recv(100).decode()
+            signal = decrypt_string(client_socket.recv(100).decode(), shared_secret)
             if signal == constants.STOP_KEYWORD:
                 print(constants.CLIENT_RESPONSE.format(signal))
                 signal_queue.put(signal)

