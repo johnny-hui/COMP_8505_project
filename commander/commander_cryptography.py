@@ -440,5 +440,5 @@ def perform_diffie_hellman(victim_socket: socket.socket):
 
         return private_key, public_key, shared_secret
     else:
-        print("[+] DIFFIE-HELLMAN ERROR: There is no current connection to any target/victim!")
+        print("[+] DIFFIE-HELLMAN KEY EXCHANGE ERROR: There is no current connection to any target/victim!")
         return None, None, None

