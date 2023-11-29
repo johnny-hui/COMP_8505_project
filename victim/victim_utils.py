@@ -1,8 +1,6 @@
 import getopt
 import ipaddress
-import os
 import queue
-import socket
 import sys
 import time
 from scapy.layers.inet6 import IPv6
@@ -300,7 +298,7 @@ def covert_data_write_to_file(shared_key: bytes, covert_data: str, filename: str
     Creates a file (if does not exist) and writes binary data to the file.
     In addition, it decrypts the data beforehand.
 
-    @param shared_secret:
+    @param shared_key:
         The shared key for symmetric encryption/decryption
 
     @param covert_data:

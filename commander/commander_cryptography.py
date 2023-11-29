@@ -2,7 +2,6 @@ import base64
 import os
 import socket
 from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.dh import DHPublicKey, DHPrivateKey, DHParameters
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes

