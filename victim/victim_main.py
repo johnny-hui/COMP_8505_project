@@ -250,7 +250,7 @@ if __name__ == '__main__':
 
                     # Wait Response: Receive File Path + Covert Channel Config (Header + Field)
                     file_path, header, field, cmdr_port = decrypt_string(client_socket.recv(1024).decode(),
-                                                                         shared_secret).split("/")
+                                                                         shared_secret).split("|")
 
                     # CHECK: If destination field choice, do nothing
                     if constants.DESTINATION_ADDRESS_FIELD == field:

@@ -3837,7 +3837,7 @@ def receive_file_covert(client_socket: socket.socket,
         save_file_path = sub_directory_path + "/" + file_name
 
         # Send Data to Client (choice[0, 1] = header, field)
-        client_socket.send(encrypt_string((file_path + "/" + choices[0] + "/" + choices[1] + "/" + str(source_port)),
+        client_socket.send(encrypt_string((file_path + "|" + choices[0] + "|" + choices[1] + "|" + str(source_port)),
                                           shared_key).encode())
 
         # CHECK: If destination field choice, do nothing
