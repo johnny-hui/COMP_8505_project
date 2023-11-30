@@ -263,6 +263,7 @@ WATCH_FILE_DELETE_DETECTED_MSG = ("[+] WATCH FILE DELETE EVENT DETECTED: The wat
                                   "client/victim ({}, {})")
 WATCH_FILE_THREAD_TERMINATING = ("[+] THREAD TERMINATION: Now terminating the following thread: "
                                  "Watch_File_Client_Socket Thread...")
+WATCH_FILE_DOES_NOT_EXIST = "[+] WATCH FILE ERROR: File does not exist on client's end!"
 
 # MENU ITEM 11 - Stop Watching File
 STOP_WATCH_FILE_MSG = "[+] [MENU ITEM 11] - Now Stopping Watch File"

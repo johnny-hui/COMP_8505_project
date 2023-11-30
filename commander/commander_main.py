@@ -176,11 +176,9 @@ if __name__ == '__main__':
 
 # MENU ITEM 9 - Watch File (BUG: Files that are nested and in sub-directories)
                 if command == constants.PERFORM_MENU_ITEM_NINE:
-                    global_thread = perform_menu_item_9(connected_clients, global_thread, signal_queue)
+                    global_thread = perform_menu_item_9(connected_clients, global_thread, signal_queue, shared_secret)
 
 # MENU ITEM 10 - Watch Directory [PENDING IMPLEMENTATION]
-                # 1) If the file is ADDED (in directories), store it in the
-                #    ip-based directory of commander
 
                 # MENU ITEM 11 - Stop Watching File
                 if command == constants.PERFORM_MENU_ITEM_ELEVEN:
