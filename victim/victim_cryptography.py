@@ -244,7 +244,7 @@ def derive_aes_key(shared_key: bytes, salt: bytes):
     """
     try:
         kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
+            algorithm=hashes.SHA3_256(),
             length=32,  # => Use 32 bytes for a 256-bit key
             salt=salt,
             iterations=100000,

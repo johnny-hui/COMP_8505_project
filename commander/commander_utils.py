@@ -462,7 +462,7 @@ def transfer_file_ipv4_ttl(client_sock: socket.socket, dest_ip: str,
 
     # d) Send total number of packets to the client
     total_packets = str(len(chunks))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
