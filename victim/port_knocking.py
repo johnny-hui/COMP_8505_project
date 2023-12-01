@@ -1,6 +1,8 @@
 import ipaddress
 import re
 import subprocess
+import time
+
 from scapy.layers.inet import IP, TCP
 from scapy.sendrecv import sniff, send
 
@@ -158,6 +160,7 @@ def validate_port_knocking(source_port: int):
                     print("[+] PORT INCORRECT: A timeout has occurred while expecting a "
                           "knock on port {} within 3 second timeframe...".format(port_num))
                     packet = IP(dst=trusted_ip_addr) / TCP(sport=source_port) / "REJECTED"
+                    time.sleep(1)
                     send(packet, verbose=0)
                     has_failed = True
                     break
@@ -169,6 +172,7 @@ def validate_port_knocking(source_port: int):
             print("[+] SEQUENCE CORRECT: Now allowing {} through port {}...".format(trusted_ip_addr, source_port))
             accept_connection(trusted_ip_addr, source_port)
             packet = IP(dst=trusted_ip_addr) / TCP(sport=source_port) / "ACCEPTED"
+            time.sleep(1)
             send(packet, verbose=0)
             break
         else:
