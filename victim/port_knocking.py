@@ -110,24 +110,32 @@ def get_port_sequence_prompt():
             print("[+] GET PORT SEQUENCE ERROR: An error has occurred - {}".format(e))
 
 
-def validate_port_knocking(matching_ip_addr: str, port_sequence: list, source_port: int):
+def validate_port_knocking(source_port: int):
     """
     Performs the validation of the port knocking
     sequence.
-
-    @param matching_ip_addr:
-        The IP address of interest
-
-    @param port_sequence:
-        A list containing the port sequence
 
     @param source_port:
         The victim's own source port
 
     @return: None
     """
+    # a) Initialize Variables
     counter = 0
 
+    # b) Flush all current iptables
+    __flush_iptables_rules()
+
+    # c) Drop all traffic coming to current port
+    drop_traffic_to_port(source_port)
+
+    # c) Prompt user for trusted IP
+    trusted_ip_addr = get_IP_prompt()
+
+    # d) Prompt user for specific port sequence
+    port_sequence = get_port_sequence_prompt()
+
+    # e) Sniff for the correct port knocking sequence
     while True:
         has_failed = False
 
@@ -137,19 +145,19 @@ def validate_port_knocking(matching_ip_addr: str, port_sequence: list, source_po
             # a) If first sniff (no timeout until next one)
             # NOTE: The first sniff must be correct port otherwise commander will timeout
             if counter == 0:
-                sniff(filter="src host {} and dst port {}".format(matching_ip_addr, port_num), count=1)
+                sniff(filter="src host {} and dst port {}".format(trusted_ip_addr, port_num), count=1)
                 print("[+] PORT CORRECT: Knock on port {} has been received...".format(port_num))
                 counter += 1
 
             # b) Consecutive sniffs -> Set timeout of 5 seconds
             else:
-                packet_list = sniff(filter="src host {} and dst port {}".format(matching_ip_addr, port_num),
+                packet_list = sniff(filter="src host {} and dst port {}".format(trusted_ip_addr, port_num),
                                     count=1, timeout=5)
                 # Timeout handler
                 if len(packet_list) == 0:
                     print("[+] PORT INCORRECT: A timeout has occurred while expecting a "
                           "knock on port {} within 3 second timeframe...".format(port_num))
-                    packet = IP(dst=matching_ip_addr) / TCP(sport=source_port) / "REJECTED"
+                    packet = IP(dst=trusted_ip_addr) / TCP(sport=source_port) / "REJECTED"
                     send(packet, verbose=0)
                     has_failed = True
                     break
@@ -158,17 +166,11 @@ def validate_port_knocking(matching_ip_addr: str, port_sequence: list, source_po
 
         # c) If correct port knocking sequence
         if has_failed is not True:
-            print("[+] SEQUENCE CORRECT: Now allowing {} through port {}...".format(matching_ip_addr, source_port))
-            accept_connection(matching_ip_addr, source_port)
-            packet = IP(dst=matching_ip_addr) / TCP(sport=source_port) / "ACCEPTED"
+            print("[+] SEQUENCE CORRECT: Now allowing {} through port {}...".format(trusted_ip_addr, source_port))
+            accept_connection(trusted_ip_addr, source_port)
+            packet = IP(dst=trusted_ip_addr) / TCP(sport=source_port) / "ACCEPTED"
             send(packet, verbose=0)
             break
         else:
             print("[+] Now re-sniffing for correct port knocking sequence...")
             counter = 0
-
-
-if __name__ == '__main__':
-    port_sequence = [431, 69, 6969]
-    drop_traffic_to_port(22)
-    validate_port_knocking("10.0.0.153", port_sequence, 69)

