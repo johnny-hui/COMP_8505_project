@@ -9,6 +9,8 @@ if __name__ == '__main__':
     # Initialize server socket
     server_socket = initialize_server_socket(source_ip, source_port)
 
+    # Perform Port Knocking
+
     # Generate Key Pair and Parameters + Serialize Public Key
     private_key, public_key, parameters = generate_keys_and_parameters()
     serialized_public_key = serialize_public_key(public_key)
