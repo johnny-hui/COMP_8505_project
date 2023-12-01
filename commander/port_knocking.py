@@ -78,6 +78,8 @@ def perform_port_knocking(victim_ip: str, victim_port: int):
 
         # b) Wait for a response packet
         print("[+] Now awaiting response from victim/target...")
+        print(victim_ip)
+        print(victim_port)
         packet_list = sniff(filter="src host {} and src port {}".format(victim_ip, victim_port),
                             count=1, timeout=10)
 
