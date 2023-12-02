@@ -158,4 +158,4 @@ RUN_PROGRAM_SIGNAL = "RUN PROGRAM"
 EXIT_RUN_PROGRAM_SIGNAL = "exit"
 COMMANDER_QUIT = "[+] RUN PROGRAM TERMINATED: Commander has stopped running program/commands..."
 COMMAND_WAIT_MSG = "[+] Now awaiting command from commander..."
-
+EXECUTING_COMMAND_MSG = "[+] EXECUTING COMMAND: {}"
