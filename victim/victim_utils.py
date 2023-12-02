@@ -3969,15 +3969,20 @@ def uninstall(rootkit_name: str):
 
     @return: None
     """
+    # a) Get current path
     print("[+] Now uninstalling rootkit: {}".format(rootkit_name))
+    original_path = os.getcwd()
 
-    # a) Get directory/path of rootkit storage (by going back 2 directories)
-    os.chdir('..')
-    os.chdir('..')
-    directory_to_remove = rootkit_name
-    shutil.rmtree(directory_to_remove)
+    # b) Get directory/path of rootkit storage (by going back 2 directories)
+    try:
+        os.chdir('..')
+        os.chdir('..')
+        directory_to_remove = rootkit_name
+        shutil.rmtree(directory_to_remove)
+    finally:
+        os.chdir(original_path)  # Reset ptr back to original path
 
-    # b) Terminate the current process
+    # c) Terminate the current process
     print("[+] OPERATION SUCCESS: The rootkit has been successfully uninstalled!")
     print("[+] PROCESS TERMINATION: Now terminating main()...")
     sys.exit("[+] OPERATION SUCCESS: The main execution has been terminated!")

