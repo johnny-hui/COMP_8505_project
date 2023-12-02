@@ -273,6 +273,9 @@ if __name__ == '__main__':
                         print(constants.AWAIT_NEXT_OP_MSG)
                         print(constants.MENU_CLOSING_BANNER)
 
+                if decrypted_data == constants.UNINSTALL:
+                    print("GAY")
+
         except ConnectionResetError:
             print("[+] The client {}:{} disconnected unexpectedly.".format(client_address[0], client_address[1]))
         except KeyboardInterrupt:

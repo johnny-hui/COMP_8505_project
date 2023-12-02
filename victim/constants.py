@@ -147,3 +147,6 @@ AWAIT_NEXT_OP_MSG = "[+] Awaiting next operation from commander..."
 
 # Transfer keylog file(s) to commander
 TRANSFER_KEYLOG_FILE_INFO = "[+] TRANSFER FILE: Now transferring {}..."
+
+# Uninstall
+UNINSTALL = "UNINSTALL"

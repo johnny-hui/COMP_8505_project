@@ -299,3 +299,7 @@ INVALID_SRC_PORT_NUMBER_RANGE = ("[+] ERROR: The value provided for source port 
                                  "valid: (not between 0 and 65536)")
 NO_SRC_IP_ADDRESS_SPECIFIED_ERROR = "[+] ERROR: No source IP Address (-s or --src_ip option) was specified!"
 NO_SRC_PORT_NUMBER_SPECIFIED_ERROR = "[+] ERROR: No source port number (-c or --src_port option) was specified!"
+
+
+# MENU ITEM 15 - UNINSTALL
+UNINSTALL = "UNINSTALL"

