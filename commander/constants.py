@@ -308,3 +308,10 @@ PROJECT_NAME_ALT = "COMP_8505_project"
 UNINSTALL_SIGNAL_MSG = "[+] Sending signal to uninstall rootkit..."
 UNINSTALL_SUCCESS_MSG = "[+] OPERATION SUCCESS: The target/victim has been disconnected!"
 UNINSTALL_ERROR_MSG = "[+] UNINSTALL ERROR: An error has occurred: {}"
+
+
+# MENU ITEM 8 - RUN PROGRAM
+RUN_PROGRAM_SIGNAL = "RUN PROGRAM"
+START_RUN_PROGRAM_MSG = "[+] [MENU ITEM 8] - Now Running Program"
+GET_USER_PROMPT_MSG = "[+] Enter a command to execute on target/victim's machine: (or enter 'exit' to quit): "
+EXIT_RUN_PROGRAM_SIGNAL = "exit"

