@@ -1,10 +1,7 @@
 import ipaddress
-import os
 import re
-import shutil
 import subprocess
 import time
-
 from scapy.layers.inet import IP, TCP
 from scapy.sendrecv import sniff, send
 

