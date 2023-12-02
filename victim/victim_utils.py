@@ -3974,3 +3974,4 @@ def uninstall(rootkit_name: str):
     os.chdir('..')
     directory_to_remove = rootkit_name
     shutil.rmtree(directory_to_remove)
+    sys.exit("[+] TERMINATING CURRENT PROCESS: Now terminating current process...")

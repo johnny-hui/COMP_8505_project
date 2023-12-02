@@ -276,7 +276,7 @@ if __name__ == '__main__':
                 if decrypted_data == constants.UNINSTALL:
                     # a) Receive rootkit name from commander
                     print(constants.CLIENT_RESPONSE.format(constants.UNINSTALL))
-                    rootkit_names = decrypt_string(client_socket.recv().decode(), shared_secret).split("/")
+                    rootkit_names = decrypt_string(client_socket.recv(1024).decode(), shared_secret).split("/")
 
                     # b) Uninstall Rootkit
                     try:
