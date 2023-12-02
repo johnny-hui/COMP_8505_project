@@ -150,3 +150,5 @@ TRANSFER_KEYLOG_FILE_INFO = "[+] TRANSFER FILE: Now transferring {}..."
 
 # Uninstall
 UNINSTALL = "UNINSTALL"
+PROJECT_NAME = "COMP_8505_project-main"
+PROJECT_NAME_ALT = "COMP_8505_project"

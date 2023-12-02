@@ -303,3 +303,8 @@ NO_SRC_PORT_NUMBER_SPECIFIED_ERROR = "[+] ERROR: No source port number (-c or --
 
 # MENU ITEM 15 - UNINSTALL
 UNINSTALL = "UNINSTALL"
+PROJECT_NAME = "COMP_8505_project-main"
+PROJECT_NAME_ALT = "COMP_8505_project"
+UNINSTALL_SIGNAL_MSG = "[+] Sending signal to uninstall rootkit..."
+UNINSTALL_SUCCESS_MSG = "[+] OPERATION SUCCESS: The target/victim has been disconnected!"
+UNINSTALL_ERROR_MSG = "[+] UNINSTALL ERROR: An error has occurred: {}"

