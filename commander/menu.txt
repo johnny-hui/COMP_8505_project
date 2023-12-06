@@ -6,7 +6,7 @@
 5 - Disconnect from Victim              (DONE)
 6 - Transfer a file to a Victim         (DONE)
 7 - Get a file from a Victim            (DONE)
-8 - Run program                         (PROJECT)
+8 - Run program                         (DONE)
 9 - Watch file                          (DONE)
 10 - Watch directory                    (MUST DO)
 11 - Stop watching file                 (DONE)

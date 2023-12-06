@@ -3,6 +3,7 @@
 # Create two files
 touch file1.txt
 touch file2.txt
+touch bob.txt
 
 # Provide some content for the files
 echo "bob" > file1.txt
